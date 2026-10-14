@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (local tooling for linting/previewing specs, e.g. @redocly/cli, @asyncapi/cli)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build / generated output
+dist/
+.asyncapi-studio/
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.*
