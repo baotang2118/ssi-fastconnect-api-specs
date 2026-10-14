@@ -1,0 +1,3149 @@
+asyncapi: 3.0.0
+info:
+  title: "FastConnect WebSocket"
+  version: "3.2.0"
+  description: "AsyncAPI specification for SSI FastConnect WebSockets: market/trading streams at `wss://stream.ssi.com.vn` and the request/response trading API at `wss://api.ssi.com.vn/ws/v3/trading`. Covers authentication, subscriptions, heartbeat, market and trading events, signed order/FCO methods, unsigned query methods, ping/pong, and order/portfolio notifications."
+
+servers:
+  stream:
+    host: "stream.ssi.com.vn"
+    protocol: "wss"
+    description: "FastConnect WebSocket stream tại `wss://stream.ssi.com.vn` cung cấp dữ liệu giao dịch và thị trường theo thời gian thực. Lấy token qua API auth trước khi kết nối, duy trì heartbeat và subscribe lại các topic sau khi reconnect."
+
+  tradingApi:
+    host: "api.ssi.com.vn"
+    pathname: "/ws/v3/trading"
+    protocol: "wss"
+    title: "WebSocket API"
+    summary: "Kết nối WebSocket API"
+    security:
+      - $ref: "#/components/securitySchemes/tradingApiTokenQuery"
+      - $ref: "#/components/securitySchemes/tradingApiBearerToken"
+    description: "Kết nối `/ws/v3/trading` qua HTTP Upgrade (`101` khi thành công). Xác thực JWT qua query `?token=<jwt>` hoặc header `Authorization: Bearer <jwt>`. Tối đa 10 kết nối/API Key. Ngoài lỗi upgrade `400`, server gửi lỗi từ chối sau khi kết nối; client nên đọc message đầu tiên. API đang thử nghiệm nội bộ, chưa phát hành chính thức."
+
+channels:
+  marketStream:
+    address: "/"
+    servers:
+      - $ref: "#/servers/stream"
+    title: "FastConnect streaming channel"
+    description: "Message dùng `method`, `channel`, `topics`; method gồm SUBSCRIBE/UNSUBSCRIBE/LIST_SUBSCRIPTION/PING/PONG. TRADING gồm event lệnh/FCO và danh mục; `portfolio` chỉ hỗ trợ tài khoản phái sinh đuôi 8. DATA gồm trade/quote/room/put/oddlot/market. Topic nhận mã, nhóm/sàn hoặc `*`; interval mặc định `tick`, market không dùng interval."
+    messages:
+      subscribeRequest:
+        $ref: "#/components/messages/SubscribeRequest"
+      unsubscribeRequest:
+        $ref: "#/components/messages/UnsubscribeRequest"
+      listSubscriptionRequest:
+        $ref: "#/components/messages/ListSubscriptionRequest"
+      pong:
+        $ref: "#/components/messages/Pong"
+      ping:
+        $ref: "#/components/messages/Ping"
+      listSubscriptionResponse:
+        $ref: "#/components/messages/ListSubscriptionResponse"
+      orderEvent:
+        $ref: "#/components/messages/OrderEvent"
+      orderMatchEvent:
+        $ref: "#/components/messages/OrderMatchEvent"
+      clientPortfolioEvent:
+        $ref: "#/components/messages/ClientPortfolioEvent"
+      fcoEvent:
+        $ref: "#/components/messages/FcoEvent"
+      tradeEvent:
+        $ref: "#/components/messages/TradeEvent"
+      quoteEvent:
+        $ref: "#/components/messages/QuoteEvent"
+      roomEvent:
+        $ref: "#/components/messages/RoomEvent"
+      putEvent:
+        $ref: "#/components/messages/PutEvent"
+      oddlotEvent:
+        $ref: "#/components/messages/OddlotEvent"
+      marketEvent:
+        $ref: "#/components/messages/MarketEvent"
+      marketFlagEvent:
+        $ref: "#/components/messages/MarketFlagEvent"
+
+  tradingApi:
+    address: "/"
+    servers:
+      - $ref: "#/servers/tradingApi"
+    title: "WebSocket API channel"
+    description: "WebSocket API cho phép đặt/sửa/hủy lệnh thường, đặt/hủy lệnh điều kiện (FCO), và tra cứu vị thế/số dư/sổ lệnh — tất cả trên một kết nối WebSocket duy nhất, độ trễ thấp hơn nhiều so với gọi REST cho từng lệnh. Trên cùng kết nối, bạn cũng có thể đăng ký nhận thông báo ngay khi lệnh khớp hoặc tài khoản có thay đổi.\n\n## Envelope request\n\nMọi request nghiệp vụ (`order.*`, `fco.*`, `query.*`) dùng chung envelope:\n\n```json\n{\n  \"id\": \"req-0001\",\n  \"method\": \"order.place\",\n  \"params\": { },\n  \"signature\": \"base64(RSA-SHA256(...))\",\n  \"timestamp\": 1755000000000\n}\n```\n\n`id` do client tự sinh để đối chiếu response; response trả lại đúng `id` đó.\n\n## Envelope response\n\n```json\n{\n  \"id\": \"req-0001\",\n  \"method\": \"order.place\",\n  \"status\": 200,\n  \"result\": { },\n  \"rateLimit\": { \"limit\": 50, \"remaining\": 47, \"resetMs\": 900 }\n}\n```\n\n## Message không mang `id`\n\n`ping_pong` / `ping_only` và `SUBSCRIBE` / `UNSUBSCRIBE` không cần chữ ký và không mang `id`."
+    messages:
+      pingPongRequest:
+        $ref: "#/components/messages/TradingApiPingPongRequest"
+      pingPongResponse:
+        $ref: "#/components/messages/TradingApiPingPongResponse"
+      connectionRejectMessage:
+        $ref: "#/components/messages/TradingApiConnectionRejectMessage"
+      orderPlaceRequest:
+        $ref: "#/components/messages/OrderPlaceRequest"
+      orderPlaceResponse:
+        $ref: "#/components/messages/OrderPlaceResponse"
+      orderAmendRequest:
+        $ref: "#/components/messages/OrderAmendRequest"
+      orderAmendResponse:
+        $ref: "#/components/messages/OrderAmendResponse"
+      orderCancelRequest:
+        $ref: "#/components/messages/OrderCancelRequest"
+      orderCancelResponse:
+        $ref: "#/components/messages/OrderCancelResponse"
+      fcoPlaceRequest:
+        $ref: "#/components/messages/FcoPlaceRequest"
+      fcoPlaceResponse:
+        $ref: "#/components/messages/FcoPlaceResponse"
+      fcoCancelRequest:
+        $ref: "#/components/messages/FcoCancelRequest"
+      fcoCancelResponse:
+        $ref: "#/components/messages/FcoCancelResponse"
+      fcoOrderbookRequest:
+        $ref: "#/components/messages/FcoOrderbookRequest"
+      fcoOrderbookResponse:
+        $ref: "#/components/messages/FcoOrderbookResponse"
+      fcoListRequest:
+        $ref: "#/components/messages/FcoListRequest"
+      fcoListResponse:
+        $ref: "#/components/messages/FcoListResponse"
+      fcoStatusHistoryRequest:
+        $ref: "#/components/messages/FcoStatusHistoryRequest"
+      fcoStatusHistoryResponse:
+        $ref: "#/components/messages/FcoStatusHistoryResponse"
+      queryPositionRequest:
+        $ref: "#/components/messages/QueryPositionRequest"
+      queryPositionResponse:
+        $ref: "#/components/messages/QueryPositionResponse"
+      queryMaxBuySellRequest:
+        $ref: "#/components/messages/QueryMaxBuySellRequest"
+      queryMaxBuySellResponse:
+        $ref: "#/components/messages/QueryMaxBuySellResponse"
+      queryAccountBalanceRequest:
+        $ref: "#/components/messages/QueryAccountBalanceRequest"
+      queryAccountBalanceResponse:
+        $ref: "#/components/messages/QueryAccountBalanceResponse"
+      queryPpmmrAccountRequest:
+        $ref: "#/components/messages/QueryPpmmrAccountRequest"
+      queryPpmmrAccountResponse:
+        $ref: "#/components/messages/QueryPpmmrAccountResponse"
+      queryOrderBookRequest:
+        $ref: "#/components/messages/QueryOrderBookRequest"
+      queryOrderBookResponse:
+        $ref: "#/components/messages/QueryOrderBookResponse"
+      tradingApiSubscribeRequest:
+        $ref: "#/components/messages/TradingApiSubscribeRequest"
+      tradingApiUnsubscribeRequest:
+        $ref: "#/components/messages/TradingApiUnsubscribeRequest"
+      tradingApiSubscriptionAck:
+        $ref: "#/components/messages/TradingApiSubscriptionAck"
+      tradingApiNotification:
+        $ref: "#/components/messages/TradingApiNotification"
+      tradingApiErrorResponse:
+        $ref: "#/components/messages/TradingApiErrorResponse"
+
+operations:
+  subscribe:
+    action: send
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "Subscribe topic"
+    description: "Gửi `SUBSCRIBE` trên channel `TRADING` hoặc `DATA`; có thể đăng ký nhiều topic cùng lúc. Topic lặp bị bỏ qua và cần đăng ký lại sau reconnect. `order.*` nhận event lệnh/FCO, `portfolio.*` nhận event danh mục. Topic DATA nhận symbol, danh sách mã, nhóm chỉ số hoặc sàn; cú pháp tương tự áp dụng cho trade, quote, room, put, oddlot và market."
+    messages:
+      - $ref: "#/channels/marketStream/messages/subscribeRequest"
+
+  unsubscribe:
+    action: send
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "Unsubscribe topic"
+    description: "## Unsubscribe\n\nGửi message với `method: \"UNSUBSCRIBE\"` và `channel: \"TRADING\"`:\n\n```json\n{\n  \"method\": \"UNSUBSCRIBE\",\n  \"channel\": \"TRADING\",\n  \"topics\": [\"order.0901351\", \"portfolio.0901351\"]\n}\n```\n\n### Quy tắc unsubscribe\n\n• Chỉ unsubscribe các topic đã subscribe trước đó.\n• Unsubscribe topic chưa subscribe không gây lỗi — server bỏ qua.\n• Unsubscribe không ảnh hưởng đến các topic khác đang subscribe.\n• Để kiểm tra danh sách topic đang subscribe, dùng `LIST_SUBSCRIPTION`.\n\n## Unsubscribe market data\n\n```json\n{\n  \"method\": \"UNSUBSCRIBE\",\n  \"channel\": \"DATA\",\n  \"topics\": [\"trade.SSI\", \"quote.SSI\"]\n}\n```"
+    messages:
+      - $ref: "#/channels/marketStream/messages/unsubscribeRequest"
+
+  listSubscription:
+    action: send
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "List subscription"
+    description: "## Kiểm tra subscription hiện tại\n\n```json\n{\n  \"method\": \"LIST_SUBSCRIPTION\"\n}\n```\n\nClient có thể kiểm tra scope hiện tại bằng request. Response trả về các quyền truy cập theo nhóm trading/data."
+    messages:
+      - $ref: "#/channels/marketStream/messages/listSubscriptionRequest"
+
+  sendPong:
+    action: send
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "Pong từ client"
+    description: "## Pong từ client\n\n```json\n{\n  \"method\": \"PONG\",\n  \"channel\": \"HEARTBEAT\",\n  \"time\": \"dd-mm-yyyy hh-mm-ss\"\n}\n```\n\nServer gửi heartbeat định kỳ để xác nhận client còn online. Client phải phản hồi đúng định dạng để session không bị đóng."
+    messages:
+      - $ref: "#/channels/marketStream/messages/pong"
+
+  receivePing:
+    action: receive
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "Ping từ server"
+    description: "## Heartbeat\n\nServer gửi heartbeat định kỳ để xác nhận client còn online. Client phải phản hồi đúng định dạng để session không bị đóng.\n\n## Channel sử dụng\n\n`HEARTBEAT`\n\n## Ping từ server\n\n```json\n{\n  \"method\": \"PING\",\n  \"channel\": \"HEARTBEAT\",\n  \"time\": \"dd-mm-yyyy hh-mm-ss\"\n}\n```"
+    messages:
+      - $ref: "#/channels/marketStream/messages/ping"
+
+  receiveListSubscription:
+    action: receive
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "LIST_SUBSCRIPTION response"
+    description: "## LIST_SUBSCRIPTION\n\nResponse mẫu (tóm tắt scope):\n\n```json\n{\n  \"trading\": \"order.*;portfolio.123456\",\n  \"data\": \"trade.*;quote.*;room.*\"\n}\n```\n\nResponse trả về scope theo nhóm:\n\n```json\n{\n  \"trading\": \"order.0901351;portfolio.0901351\",\n  \"data\": \"\"\n}\n```"
+    messages:
+      - $ref: "#/channels/marketStream/messages/listSubscriptionResponse"
+
+  receiveTradingEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "TRADING channel events"
+    description: "## Các loại event\n\nSau khi subscribe thành công, client sẽ nhận các event sau theo thời gian thực.\n\n### Binding event trong SDK\n\n```js\nclient.bind(client.events.onOrderEvent, function (e, data) {\n  console.log(e + \": \");\n  console.log(JSON.stringify(data));\n});\nclient.bind(client.events.onOrderMatchEvent, function (e, data) {\n  console.log(e + \": \");\n  console.log(JSON.stringify(data));\n});\nclient.bind(client.events.onClientPortfolioEvent, function (e, data) {\n  console.log(e + \": \");\n  console.log(JSON.stringify(data));\n});\n```\n\n> “Sự kiện lệnh điều kiện (FCO) được trả về qua cùng binding `onClientPortfolioEvent`.”"
+    messages:
+      - $ref: "#/channels/marketStream/messages/orderEvent"
+      - $ref: "#/channels/marketStream/messages/orderMatchEvent"
+      - $ref: "#/channels/marketStream/messages/clientPortfolioEvent"
+      - $ref: "#/channels/marketStream/messages/fcoEvent"
+
+  receiveMarketDataEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/marketStream"
+    title: "DATA channel events"
+    description: "## Tổng quan\n\nKênh DATA trả về 6 nhóm thông tin thị trường:\n\n| Nhóm | Mô tả |\n| --- | --- |\n| trade | Thông tin khớp lệnh |\n| quote | Thông tin bid/ask |\n| room | Thông tin room ngoại |\n| put | Khớp lệnh thỏa thuận |\n| oddlot | Giao dịch lô lẻ |\n| market | Thông tin đầu ngày và cờ phiên |"
+    messages:
+      - $ref: "#/channels/marketStream/messages/tradeEvent"
+      - $ref: "#/channels/marketStream/messages/quoteEvent"
+      - $ref: "#/channels/marketStream/messages/roomEvent"
+      - $ref: "#/channels/marketStream/messages/putEvent"
+      - $ref: "#/channels/marketStream/messages/oddlotEvent"
+      - $ref: "#/channels/marketStream/messages/marketEvent"
+      - $ref: "#/channels/marketStream/messages/marketFlagEvent"
+
+  tradingApiSendPingPong:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "ping_pong"
+    description: "Client có thể gửi `ping_pong` hoặc `ping_only` để kiểm tra kết nối; server trả ack trên channel `HEARTBEAT`. Request không cần chữ ký hoặc `id`. Server cũng phát heartbeat mỗi 30 giây; client không bắt buộc ping nhưng nên dùng để phát hiện kết nối bị treo."
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/pingPongResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/pingPongRequest"
+
+  tradingApiReceivePingPong:
+    action: receive
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "ping_pong ack / heartbeat"
+    description: "Server trả pong trên channel `HEARTBEAT` và tự phát heartbeat mỗi 30 giây. Client nên gửi ping để phát hiện sớm kết nối bị treo."
+    messages:
+      - $ref: "#/channels/tradingApi/messages/pingPongResponse"
+
+  tradingApiReceiveConnectionReject:
+    action: receive
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "Message từ chối kết nối"
+    description: "Ngoài lỗi WebSocket upgrade `400`, server gửi lý do từ chối sau khi kết nối thành công (`101`), rồi đóng kết nối. Client nên đọc message đầu tiên để xác định kết nối sẵn sàng hay chưa. Mã lỗi có thể gồm `401` token không hợp lệ, `403` thiếu quyền, `429` vượt giới hạn kết nối hoặc `500` lỗi hệ thống."
+    messages:
+      - $ref: "#/channels/tradingApi/messages/connectionRejectMessage"
+
+  tradingApiOrderPlace:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "order.place"
+    description: "Đặt lệnh mới. Ack `PD` xác nhận đã nhận yêu cầu; trạng thái khớp thực tế gửi sau qua `order.{accountNo}`. Yêu cầu chữ ký `signature` (RSA+SHA256). Scope: `tradingws:order:post`."
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/orderPlaceResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/orderPlaceRequest"
+
+  tradingApiOrderAmend:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "order.amend"
+    description: "# order.amend\n\nSửa lệnh hiện có. Xác định lệnh cần sửa qua `orderId` HOẶC `clientRequestId` (bắt buộc truyền đúng một trong hai — truyền cả hai hoặc không truyền gì đều bị từ chối). Cùng luồng ack nhanh `PD` như `order.place`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:order:put`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0002\",\n  \"method\": \"order.amend\",\n  \"params\": {\n    \"orderId\": \"ORD123456\",\n    \"accountNo\": \"0901351\",\n    \"price\": \"46.00\",\n    \"quantity\": 500,\n    \"deviceId\": \"MAC-AABBCCDDEEFF\"\n  },\n  \"signature\": \"base64(RSA-SHA256(...))\",\n  \"timestamp\": 1755000001000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/orderAmendResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/orderAmendRequest"
+
+  tradingApiOrderCancel:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "order.cancel"
+    description: "# order.cancel\n\nHủy lệnh hiện có. Xác định lệnh cần hủy qua `orderId` HOẶC `clientRequestId` (bắt buộc truyền đúng một trong hai). Cùng luồng ack nhanh `PD` như `order.place`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:order:delete`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0003\",\n  \"method\": \"order.cancel\",\n  \"params\": {\n    \"orderId\": \"ORD123456\",\n    \"accountNo\": \"0901351\",\n    \"deviceId\": \"MAC-AABBCCDDEEFF\"\n  },\n  \"signature\": \"base64(RSA-SHA256(...))\",\n  \"timestamp\": 1755000002000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/orderCancelResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/orderCancelRequest"
+
+  tradingApiFcoPlace:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "fco.place"
+    description: "# fco.place\n\nĐặt lệnh điều kiện (Conditional Order) — response trả về ngay kết quả tạo lệnh, không theo luồng xác nhận nhanh như `order.*`. Nếu bị từ chối, response trả về lỗi kèm `error.code: \"FCO_ERROR\"`. Yêu cầu chữ ký `signature`. Tham khảo thêm [Tham khảo đặt lệnh điều kiện](https://developers.ssi.com.vn/docs/api-reference/appendix/fco-reference).\n\nScope bắt buộc: `tradingws:fco:post`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0004\",\n  \"method\": \"fco.place\",\n  \"params\": {\n    \"symbol\": \"SSI\",\n    \"side\": \"B\",\n    \"type\": \"TS\",\n    \"price\": \"45.00\",\n    \"quantity\": 4000,\n    \"accountNo\": \"1231496\",\n    \"deviceId\": \"MAC-AABBCCDDEEFF\"\n  },\n  \"signature\": \"base64(RSA-SHA256(...))\",\n  \"timestamp\": 1755000003000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/fcoPlaceResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/fcoPlaceRequest"
+
+  tradingApiFcoCancel:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "fco.cancel"
+    description: "# fco.cancel\n\nHủy lệnh điều kiện theo `fcoId`. Nếu bị từ chối, response trả về `error.code: \"FCO_ERROR\"`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:fco:delete`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0005\",\n  \"method\": \"fco.cancel\",\n  \"params\": {\n    \"fcoId\": \"7528ac20-a340-4233-8bb7-a2379fc3c638\"\n  },\n  \"signature\": \"base64(RSA-SHA256(...))\",\n  \"timestamp\": 1755000004000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/fcoCancelResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/fcoCancelRequest"
+
+  tradingApiFcoOrderbook:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "fco.orderbook"
+    description: "# fco.orderbook\n\nLấy danh sách lệnh thường được sinh ra từ một lệnh điều kiện (`fcoId`), có phân trang. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:fco:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0006\",\n  \"method\": \"fco.orderbook\",\n  \"params\": {\n    \"fcoId\": \"7528ac20-a340-4233-8bb7-a2379fc3c638\",\n    \"pageIndex\": 1,\n    \"pageSize\": 10\n  },\n  \"timestamp\": 1755000005000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/fcoOrderbookResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/fcoOrderbookRequest"
+
+  tradingApiFcoList:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "fco.list"
+    description: "# fco.list\n\nLấy danh sách lệnh điều kiện theo tài khoản và bộ lọc, có phân trang. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:fco:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0007\",\n  \"method\": \"fco.list\",\n  \"params\": {\n    \"accountNo\": \"1231496\",\n    \"pageIndex\": 1,\n    \"pageSize\": 10\n  },\n  \"timestamp\": 1755000006000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/fcoListResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/fcoListRequest"
+
+  tradingApiFcoStatusHistory:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "fco.statusHistory"
+    description: "# fco.statusHistory\n\nLấy lịch sử thay đổi trạng thái của một lệnh điều kiện (`fcoId`). Không yêu cầu chữ ký. Nếu bị lỗi HOẶC danh sách lịch sử rỗng, response trả về `error.code: \"FCO_ERROR\"` (khác với `fco.orderbook`/`fco.list`, vốn coi danh sách rỗng vẫn là thành công).\n\nScope bắt buộc: `tradingws:fco:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0008\",\n  \"method\": \"fco.statusHistory\",\n  \"params\": {\n    \"fcoId\": \"7528ac20-a340-4233-8bb7-a2379fc3c638\"\n  },\n  \"timestamp\": 1755000007000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/fcoStatusHistoryResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/fcoStatusHistoryRequest"
+
+  tradingApiQueryPosition:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "query.position"
+    description: "# query.position\n\nLấy thông tin vị thế cho tài khoản. Tài khoản cổ phiếu trả về `equity`, tài khoản phái sinh trả về `derivative`. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:position:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0009\",\n  \"method\": \"query.position\",\n  \"params\": {\n    \"accountNo\": \"0901351\",\n    \"querySummary\": true\n  },\n  \"timestamp\": 1755000008000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/queryPositionResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/queryPositionRequest"
+
+  tradingApiQueryMaxBuySell:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "query.maxBuySell"
+    description: "# query.maxBuySell\n\nLấy khối lượng mua/bán tối đa theo tài khoản, mã và giá. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:maxBuySell:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0010\",\n  \"method\": \"query.maxBuySell\",\n  \"params\": {\n    \"accountNo\": \"0901351\",\n    \"symbol\": \"SSI\",\n    \"price\": 45.5\n  },\n  \"timestamp\": 1755000009000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/queryMaxBuySellResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/queryMaxBuySellRequest"
+
+  tradingApiQueryAccountBalance:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "query.accountBalance"
+    description: "# query.accountBalance\n\nLấy số dư tài khoản giao dịch. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:accountBalance:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0011\",\n  \"method\": \"query.accountBalance\",\n  \"params\": {\n    \"accountNo\": \"0901351\"\n  },\n  \"timestamp\": 1755000010000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/queryAccountBalanceResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/queryAccountBalanceRequest"
+
+  tradingApiQueryPpmmrAccount:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "query.ppmmrAccount"
+    description: "# query.ppmmrAccount\n\nLấy thông tin PP/MMR (Purchasing Power/Maintenance Margin Ratio) của tài khoản. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:ppmmrAccount:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0012\",\n  \"method\": \"query.ppmmrAccount\",\n  \"params\": {\n    \"accountNo\": \"0901351\"\n  },\n  \"timestamp\": 1755000011000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/queryPpmmrAccountResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/queryPpmmrAccountRequest"
+
+  tradingApiQueryOrderBook:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "query.orderBook"
+    description: "# query.orderBook\n\nLấy lịch sử sổ lệnh theo tài khoản và bộ lọc, có phân trang. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:orderBook:get`.\n\nSample Request\n\n```\nwscat -c wss://api.ssi.com.vn/ws/v3/trading -x '{\n  \"id\": \"req-0013\",\n  \"method\": \"query.orderBook\",\n  \"params\": {\n    \"accountNo\": \"0901351\",\n    \"from\": \"2026/09/01\",\n    \"to\": \"2026/09/10\",\n    \"pageIndex\": 1,\n    \"pageSize\": 10\n  },\n  \"timestamp\": 1755000012000\n}'\n```"
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/queryOrderBookResponse"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/queryOrderBookRequest"
+
+  tradingApiSubscribe:
+    action: send
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "subscribe/unsubscribe"
+    description: "Dùng `SUBSCRIBE`/`UNSUBSCRIBE` trên `TRADING` để nhận cập nhật lệnh sau ack `PD`. Không cần chữ ký hoặc `id`; topic phải chỉ rõ tài khoản thuộc API Key, không hỗ trợ wildcard. `portfolio` chỉ dành cho tài khoản phái sinh đuôi 8."
+    reply:
+      channel:
+        $ref: "#/channels/tradingApi"
+      messages:
+        - $ref: "#/channels/tradingApi/messages/tradingApiSubscriptionAck"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/tradingApiSubscribeRequest"
+      - $ref: "#/channels/tradingApi/messages/tradingApiUnsubscribeRequest"
+
+  tradingApiReceiveNotification:
+    action: receive
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "Thông báo order/portfolio"
+    description: "Cấu trúc dữ liệu thông báo giống với channel `TRADING` của FastConnect WebSocket API (dữ liệu thị trường) — xem chi tiết field tại [Sub/Unsub Trading Data](https://developers.ssi.com.vn/docs/api-reference/subscribeUnsubscribeTradingData).\n\nVí dụ thông báo (`order.{accountNo}`):\n\n```json\n{ \"channel\": \"TRADING\", \"topic\": \"order.0901351\", \"data\": { \"eventType\": \"orderEvent\", \"clientRequestId\": \"req-0001\", \"orderId\": \"ORD123456\", \"orderStatus\": \"FF\", \"...\": \"...\" } }\n```"
+    messages:
+      - $ref: "#/channels/tradingApi/messages/tradingApiNotification"
+
+  tradingApiReceiveError:
+    action: receive
+    channel:
+      $ref: "#/channels/tradingApi"
+    title: "Response lỗi (default)"
+    description: "Response lỗi chung của WebSocket API. Với `fco.place`, `fco.cancel` và `fco.statusHistory`, response lỗi mang `error.code: \"FCO_ERROR\"`."
+    messages:
+      - $ref: "#/channels/tradingApi/messages/tradingApiErrorResponse"
+
+components:
+  messages:
+    SubscribeRequest:
+      name: SubscribeRequest
+      title: "Subscribe topic"
+      contentType: application/json
+      description: "## Subscribe topic\n\n```json\n{\n  \"method\": \"SUBSCRIBE\",\n  \"channel\": \"DATA|TRADING\",\n  \"topics\": [\"trade.SSI@tick\", \"quote.SSI@tick\", \"order.0901351\"]\n}\n```"
+      payload:
+        $ref: "#/components/schemas/SubscribeRequest"
+
+    UnsubscribeRequest:
+      name: UnsubscribeRequest
+      title: "Unsubscribe topic"
+      contentType: application/json
+      description: "## Unsubscribe topic\n\n```json\n{\n  \"method\": \"UNSUBSCRIBE\",\n  \"channel\": \"DATA|TRADING\",\n  \"topics\": [\"trade.SSI@tick\", \"order.0901351\"]\n}\n```"
+      payload:
+        $ref: "#/components/schemas/UnsubscribeRequest"
+
+    ListSubscriptionRequest:
+      name: ListSubscriptionRequest
+      title: "Liệt kê subscription hiện tại"
+      contentType: application/json
+      description: "## Liệt kê subscription hiện tại\n\n```json\n{\n  \"method\": \"LIST_SUBSCRIPTION\"\n}\n```"
+      payload:
+        $ref: "#/components/schemas/ListSubscriptionRequest"
+
+    ListSubscriptionResponse:
+      name: ListSubscriptionResponse
+      title: "LIST_SUBSCRIPTION response"
+      contentType: application/json
+      description: "Response trả về scope theo nhóm trading/data."
+      payload:
+        $ref: "#/components/schemas/ListSubscriptionResponse"
+
+    Ping:
+      name: Ping
+      title: "Ping từ server"
+      contentType: application/json
+      description: "## Ping từ server\n\n```json\n{\n  \"method\": \"PING\",\n  \"channel\": \"HEARTBEAT\",\n  \"time\": \"dd-mm-yyyy hh-mm-ss\"\n}\n```"
+      payload:
+        $ref: "#/components/schemas/Ping"
+
+    Pong:
+      name: Pong
+      title: "Pong từ client"
+      contentType: application/json
+      description: "## Pong từ client\n\n```json\n{\n  \"method\": \"PONG\",\n  \"channel\": \"HEARTBEAT\",\n  \"time\": \"dd-mm-yyyy hh-mm-ss\"\n}\n```"
+      payload:
+        $ref: "#/components/schemas/Pong"
+
+    OrderEvent:
+      name: OrderEvent
+      title: "Order Event"
+      contentType: application/json
+      description: "### Order Event\n\nSự kiện trạng thái lệnh — phát sinh khi lệnh được đặt, sửa, hủy hoặc thay đổi trạng thái."
+      payload:
+        $ref: "#/components/schemas/OrderEvent"
+
+    OrderMatchEvent:
+      name: OrderMatchEvent
+      title: "Order Match Event"
+      contentType: application/json
+      description: "### Order Match Event\n\nSự kiện khớp lệnh — phát sinh khi lệnh được khớp (một phần hoặc toàn bộ)."
+      payload:
+        $ref: "#/components/schemas/OrderMatchEvent"
+
+    ClientPortfolioEvent:
+      name: ClientPortfolioEvent
+      title: "Client Portfolio Event"
+      contentType: application/json
+      description: "### Client Portfolio Event\n\nSự kiện cập nhật danh mục — phát sinh khi số dư hoặc tài sản thay đổi."
+      payload:
+        $ref: "#/components/schemas/ClientPortfolioEvent"
+
+    FcoEvent:
+      name: FcoEvent
+      title: "FCO Event (Lệnh điều kiện)"
+      contentType: application/json
+      description: "FCO event phát sinh khi lệnh điều kiện thay đổi trạng thái; được gửi trên kênh `order` qua binding `onClientPortfolioEvent`."
+      payload:
+        $ref: "#/components/schemas/FcoEvent"
+
+    TradeEvent:
+      name: TradeEvent
+      title: "Trade — thông tin khớp lệnh"
+      contentType: application/json
+      description: "## I. Trade — thông tin khớp lệnh"
+      payload:
+        $ref: "#/components/schemas/TradeEvent"
+
+    QuoteEvent:
+      name: QuoteEvent
+      title: "Quote — thông tin bid/ask"
+      contentType: application/json
+      description: "## III. Quote — thông tin bid/ask"
+      payload:
+        $ref: "#/components/schemas/QuoteEvent"
+
+    RoomEvent:
+      name: RoomEvent
+      title: "Room — thông tin room ngoại"
+      contentType: application/json
+      description: "## II. Room — thông tin room ngoại"
+      payload:
+        $ref: "#/components/schemas/RoomEvent"
+
+    PutEvent:
+      name: PutEvent
+      title: "Put — khớp lệnh thỏa thuận"
+      contentType: application/json
+      description: "## IV. Put — khớp lệnh thỏa thuận"
+      payload:
+        $ref: "#/components/schemas/PutEvent"
+
+    OddlotEvent:
+      name: OddlotEvent
+      title: "Oddlot — giao dịch lô lẻ"
+      contentType: application/json
+      description: "## V. Oddlot — giao dịch lô lẻ"
+      payload:
+        $ref: "#/components/schemas/OddlotEvent"
+
+    MarketEvent:
+      name: MarketEvent
+      title: "Market — thông tin đầu ngày và phiên"
+      contentType: application/json
+      description: "## VI. Market — thông tin đầu ngày và phiên\n\nCú pháp subscribe không có interval: `market.[index/exchange/symbol-symbol/*]`.\n\nMarket streaming data:"
+      payload:
+        $ref: "#/components/schemas/MarketEvent"
+
+    MarketFlagEvent:
+      name: MarketFlagEvent
+      title: "Market flag (message cờ phiên)"
+      contentType: application/json
+      description: "Market flag (message cờ phiên):"
+      payload:
+        $ref: "#/components/schemas/MarketFlagEvent"
+
+    TradingApiConnectionRejectMessage:
+      name: TradingApiConnectionRejectMessage
+      title: "Message từ chối kết nối"
+      contentType: application/json
+      description: "Ví dụ message từ chối:\n\n```json\n{ \"code\": 401, \"msg\": \"Invalid or expired token\" }\n```\n\nCác lý do từ chối có thể gặp: `401` token thiếu/sai/hết hạn/bị thu hồi, `403` thiếu quyền `tradingws:*:*`, `429` vượt giới hạn kết nối đồng thời, `500` lỗi hệ thống."
+      payload:
+        $ref: "#/components/schemas/TradingApiConnectionRejectMessage"
+
+    TradingApiPingPongRequest:
+      name: TradingApiPingPongRequest
+      title: "ping_pong — client gửi ping"
+      contentType: application/json
+      description: "Client gửi ping:\n\n```json\n{ \"method\": \"ping_pong\" }\n```\n\nMessage này không cần chữ ký và không mang `id`."
+      payload:
+        $ref: "#/components/schemas/TradingApiPingPongRequest"
+
+    TradingApiPingPongResponse:
+      name: TradingApiPingPongResponse
+      title: "ping_pong — server trả pong"
+      contentType: application/json
+      description: "Server trả pong:\n\n```json\n{ \"method\": \"ping_pong\", \"channel\": \"HEARTBEAT\", \"status\": \"ok\", \"message\": \"pong\" }\n```"
+      payload:
+        $ref: "#/components/schemas/TradingApiPingPongResponse"
+
+    OrderPlaceRequest:
+      name: OrderPlaceRequest
+      title: "order.place request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Đặt lệnh mới. Hệ thống phản hồi ngay (`orderStatus: \"PD\"`) để xác nhận đã nhận lệnh — trạng thái khớp lệnh thật sẽ đến sau qua kênh thông báo `order.{accountNo}`. Yêu cầu chữ ký `signature` (RSA+SHA256) theo quy định UBCKNN về toàn vẹn dữ liệu giao dịch.\n\nScope bắt buộc: `tradingws:order:post`."
+      payload:
+        $ref: "#/components/schemas/OrderPlaceRequest"
+
+    OrderPlaceResponse:
+      name: OrderPlaceResponse
+      title: "order.place response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0001\",\n  \"method\": \"order.place\",\n  \"status\": 200,\n  \"result\": {\n    \"clientRequestId\": \"req-0001\",\n    \"orderStatus\": \"PD\"\n  },\n  \"rateLimit\": {\n    \"limit\": 50,\n    \"remaining\": 47,\n    \"resetMs\": 900\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/OrderPlaceResponse"
+
+    OrderAmendRequest:
+      name: OrderAmendRequest
+      title: "order.amend request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Sửa lệnh hiện có. Xác định lệnh cần sửa qua `orderId` HOẶC `clientRequestId` (bắt buộc truyền đúng một trong hai — truyền cả hai hoặc không truyền gì đều bị từ chối). Cùng luồng ack nhanh `PD` như `order.place`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:order:put`."
+      payload:
+        $ref: "#/components/schemas/OrderAmendRequest"
+
+    OrderAmendResponse:
+      name: OrderAmendResponse
+      title: "order.amend response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0002\",\n  \"method\": \"order.amend\",\n  \"status\": 200,\n  \"result\": {\n    \"clientRequestId\": \"req-0001\",\n    \"orderId\": \"ORD123456\",\n    \"orderStatus\": \"PD\",\n    \"clientModifyId\": \"req-0002\"\n  },\n  \"rateLimit\": {\n    \"limit\": 50,\n    \"remaining\": 46,\n    \"resetMs\": 880\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/OrderAmendResponse"
+
+    OrderCancelRequest:
+      name: OrderCancelRequest
+      title: "order.cancel request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Hủy lệnh hiện có. Xác định lệnh cần hủy qua `orderId` HOẶC `clientRequestId` (bắt buộc truyền đúng một trong hai). Cùng luồng ack nhanh `PD` như `order.place`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:order:delete`."
+      payload:
+        $ref: "#/components/schemas/OrderCancelRequest"
+
+    OrderCancelResponse:
+      name: OrderCancelResponse
+      title: "order.cancel response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0003\",\n  \"method\": \"order.cancel\",\n  \"status\": 200,\n  \"result\": {\n    \"clientRequestId\": \"req-0001\",\n    \"orderId\": \"ORD123456\",\n    \"orderStatus\": \"PD\",\n    \"clientCancelId\": \"req-0003\"\n  },\n  \"rateLimit\": {\n    \"limit\": 50,\n    \"remaining\": 45,\n    \"resetMs\": 860\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/OrderCancelResponse"
+
+    FcoPlaceRequest:
+      name: FcoPlaceRequest
+      title: "fco.place request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Đặt lệnh điều kiện (Conditional Order) — response trả về ngay kết quả tạo lệnh, không theo luồng xác nhận nhanh như `order.*`. Nếu bị từ chối, response trả về lỗi kèm `error.code: \"FCO_ERROR\"`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:fco:post`."
+      payload:
+        $ref: "#/components/schemas/FcoPlaceRequest"
+
+    FcoPlaceResponse:
+      name: FcoPlaceResponse
+      title: "fco.place response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0004\",\n  \"method\": \"fco.place\",\n  \"status\": 200,\n  \"result\": {\n    \"fcoId\": \"7528ac20-a340-4233-8bb7-a2379fc3c638\"\n  },\n  \"rateLimit\": {\n    \"limit\": 50,\n    \"remaining\": 44,\n    \"resetMs\": 840\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/FcoPlaceResponse"
+
+    FcoCancelRequest:
+      name: FcoCancelRequest
+      title: "fco.cancel request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Hủy lệnh điều kiện theo `fcoId`. Nếu bị từ chối, response trả về `error.code: \"FCO_ERROR\"`. Yêu cầu chữ ký `signature`.\n\nScope bắt buộc: `tradingws:fco:delete`."
+      payload:
+        $ref: "#/components/schemas/FcoCancelRequest"
+
+    FcoCancelResponse:
+      name: FcoCancelResponse
+      title: "fco.cancel response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0005\",\n  \"method\": \"fco.cancel\",\n  \"status\": 200,\n  \"result\": {\n    \"fcoId\": \"7528ac20-a340-4233-8bb7-a2379fc3c638\",\n    \"username\": \"123149\"\n  },\n  \"rateLimit\": {\n    \"limit\": 50,\n    \"remaining\": 43,\n    \"resetMs\": 820\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/FcoCancelResponse"
+
+    FcoOrderbookRequest:
+      name: FcoOrderbookRequest
+      title: "fco.orderbook request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy danh sách lệnh thường được sinh ra từ một lệnh điều kiện (`fcoId`), có phân trang. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:fco:get`."
+      payload:
+        $ref: "#/components/schemas/FcoOrderbookRequest"
+
+    FcoOrderbookResponse:
+      name: FcoOrderbookResponse
+      title: "fco.orderbook response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0006\",\n  \"method\": \"fco.orderbook\",\n  \"status\": 200,\n  \"result\": {\n    \"data\": [\n      {\n        \"fcoId\": \"7528ac20-a340-4233-8bb7-a2379fc3c638\",\n        \"accountNo\": \"1231496\",\n        \"quantity\": 4000,\n        \"price\": \"45.00\",\n        \"symbol\": \"SSI\",\n        \"side\": \"B\",\n        \"orderType\": \"LO\",\n        \"isMainOrder\": true,\n        \"isAttachedOrder\": false,\n        \"createdTime\": \"2026/07/29 09:15:32\",\n        \"updatedTime\": \"2026/07/29 09:15:32\",\n        \"uniqueId\": \"UQ-001\",\n        \"orderId\": \"ORD654321\",\n        \"matchedQuantity\": 0,\n        \"osQuantity\": 4000,\n        \"avgPrice\": 0,\n        \"status\": \"PD\",\n        \"detail\": \"\",\n        \"type\": \"TS\"\n      }\n    ],\n    \"pageSize\": 10,\n    \"pageIndex\": 1,\n    \"itemsCount\": 1,\n    \"pagesCount\": 1\n  },\n  \"rateLimit\": {\n    \"limit\": 100,\n    \"remaining\": 99,\n    \"resetMs\": 900\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/FcoOrderbookResponse"
+
+    FcoListRequest:
+      name: FcoListRequest
+      title: "fco.list request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy danh sách lệnh điều kiện theo tài khoản và bộ lọc, có phân trang. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:fco:get`."
+      payload:
+        $ref: "#/components/schemas/FcoListRequest"
+
+    FcoListResponse:
+      name: FcoListResponse
+      title: "fco.list response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Ví dụ response thành công của `fco.list`, gồm danh sách lệnh điều kiện, thông tin phân trang và giới hạn request."
+      payload:
+        $ref: "#/components/schemas/FcoListResponse"
+
+    FcoStatusHistoryRequest:
+      name: FcoStatusHistoryRequest
+      title: "fco.statusHistory request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy lịch sử thay đổi trạng thái của một lệnh điều kiện (`fcoId`). Không yêu cầu chữ ký. Nếu bị lỗi HOẶC danh sách lịch sử rỗng, response trả về `error.code: \"FCO_ERROR\"` (khác với `fco.orderbook`/`fco.list`, vốn coi danh sách rỗng vẫn là thành công).\n\nScope bắt buộc: `tradingws:fco:get`."
+      payload:
+        $ref: "#/components/schemas/FcoStatusHistoryRequest"
+
+    FcoStatusHistoryResponse:
+      name: FcoStatusHistoryResponse
+      title: "fco.statusHistory response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Ví dụ response thành công của `fco.statusHistory`, gồm danh sách lịch sử trạng thái trong `result.data` và thông tin giới hạn request trong `rateLimit`."
+      payload:
+        $ref: "#/components/schemas/FcoStatusHistoryResponse"
+
+    QueryPositionRequest:
+      name: QueryPositionRequest
+      title: "query.position request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy thông tin vị thế cho tài khoản. Tài khoản cổ phiếu trả về `equity`, tài khoản phái sinh trả về `derivative`. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:position:get`."
+      payload:
+        $ref: "#/components/schemas/QueryPositionRequest"
+
+    QueryPositionResponse:
+      name: QueryPositionResponse
+      title: "query.position response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Ví dụ response thành công của `query.position`, gồm danh sách vị thế cổ phiếu trong `equity` và `derivative` rỗng."
+      payload:
+        $ref: "#/components/schemas/QueryPositionResponse"
+
+    QueryMaxBuySellRequest:
+      name: QueryMaxBuySellRequest
+      title: "query.maxBuySell request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy khối lượng mua/bán tối đa theo tài khoản, mã và giá. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:maxBuySell:get`."
+      payload:
+        $ref: "#/components/schemas/QueryMaxBuySellRequest"
+
+    QueryMaxBuySellResponse:
+      name: QueryMaxBuySellResponse
+      title: "query.maxBuySell response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0010\",\n  \"method\": \"query.maxBuySell\",\n  \"status\": 200,\n  \"result\": {\n    \"accountNo\": \"0901351\",\n    \"maxBuyQty\": 5000,\n    \"marginRatio\": \"50%\",\n    \"purchasingPower\": 227500,\n    \"maxSellQty\": 1000\n  },\n  \"rateLimit\": {\n    \"limit\": 100,\n    \"remaining\": 95,\n    \"resetMs\": 820\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/QueryMaxBuySellResponse"
+
+    QueryAccountBalanceRequest:
+      name: QueryAccountBalanceRequest
+      title: "query.accountBalance request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy số dư tài khoản giao dịch. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:accountBalance:get`."
+      payload:
+        $ref: "#/components/schemas/QueryAccountBalanceRequest"
+
+    QueryAccountBalanceResponse:
+      name: QueryAccountBalanceResponse
+      title: "query.accountBalance response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0011\",\n  \"method\": \"query.accountBalance\",\n  \"status\": 200,\n  \"result\": {\n    \"equity\": {\n      \"accountNo\": \"0901351\",\n      \"accountBalance\": \"50000000\",\n      \"withdrawable\": \"45000000\"\n    },\n    \"derivative\": null\n  },\n  \"rateLimit\": {\n    \"limit\": 100,\n    \"remaining\": 94,\n    \"resetMs\": 800\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/QueryAccountBalanceResponse"
+
+    QueryPpmmrAccountRequest:
+      name: QueryPpmmrAccountRequest
+      title: "query.ppmmrAccount request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy thông tin PP/MMR (Purchasing Power/Maintenance Margin Ratio) của tài khoản. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:ppmmrAccount:get`."
+      payload:
+        $ref: "#/components/schemas/QueryPpmmrAccountRequest"
+
+    QueryPpmmrAccountResponse:
+      name: QueryPpmmrAccountResponse
+      title: "query.ppmmrAccount response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Sample Response\n\n```json\n{\n  \"id\": \"req-0012\",\n  \"method\": \"query.ppmmrAccount\",\n  \"status\": 200,\n  \"result\": {\n    \"equity\": {\n      \"accountNo\": \"0901351\",\n      \"purchasingPower\": \"227500000\",\n      \"marginRatio\": \"165%\"\n    },\n    \"derivative\": null\n  },\n  \"rateLimit\": {\n    \"limit\": 100,\n    \"remaining\": 93,\n    \"resetMs\": 780\n  }\n}\n```"
+      payload:
+        $ref: "#/components/schemas/QueryPpmmrAccountResponse"
+
+    QueryOrderBookRequest:
+      name: QueryOrderBookRequest
+      title: "query.orderBook request"
+      contentType: application/json
+      correlationId:
+        description: "`id` — Định danh do client tự sinh để đối chiếu response."
+        location: "$message.payload#/id"
+      description: "Lấy lịch sử sổ lệnh theo tài khoản và bộ lọc, có phân trang. Không yêu cầu chữ ký.\n\nScope bắt buộc: `tradingws:orderBook:get`."
+      payload:
+        $ref: "#/components/schemas/QueryOrderBookRequest"
+
+    QueryOrderBookResponse:
+      name: QueryOrderBookResponse
+      title: "query.orderBook response (200)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Ví dụ response thành công của `query.orderBook`, gồm thông tin tài khoản, tổng số bản ghi, danh sách lệnh và giới hạn request."
+      payload:
+        $ref: "#/components/schemas/QueryOrderBookResponse"
+
+    TradingApiSubscribeRequest:
+      name: TradingApiSubscribeRequest
+      title: "SUBSCRIBE request"
+      contentType: application/json
+      description: "Subscribe sample:\n\n```json\n{ \"method\": \"SUBSCRIBE\", \"channel\": \"TRADING\", \"topics\": [\"order.0901351\", \"portfolio.1231996\"] }\n```\n\nMessage này không cần chữ ký và không mang `id`."
+      payload:
+        $ref: "#/components/schemas/TradingApiSubscribeRequest"
+
+    TradingApiUnsubscribeRequest:
+      name: TradingApiUnsubscribeRequest
+      title: "UNSUBSCRIBE request"
+      contentType: application/json
+      description: "Rỗng khi UNSUBSCRIBE nghĩa là hủy toàn bộ topic đang subscribe.\n\nMessage này không cần chữ ký và không mang `id`."
+      payload:
+        $ref: "#/components/schemas/TradingApiUnsubscribeRequest"
+
+    TradingApiSubscriptionAck:
+      name: TradingApiSubscriptionAck
+      title: "Ack subscribe/unsubscribe"
+      contentType: application/json
+      description: "Ack:\n\n```json\n{ \"method\": \"SUBSCRIBE\", \"channel\": \"TRADING\", \"status\": \"ok\", \"message\": \"Subscribed to 2 topic(s)\" }\n```\n\nNếu `status: \"error\"`, `message` mô tả lý do (topic sai cú pháp, thiếu quyền, hoặc tài khoản không thuộc quyền sở hữu)."
+      payload:
+        $ref: "#/components/schemas/TradingApiSubscriptionAck"
+
+    TradingApiNotification:
+      name: TradingApiNotification
+      title: "Thông báo order/portfolio"
+      contentType: application/json
+      description: "Ví dụ thông báo (`order.{accountNo}`):\n\n```json\n{ \"channel\": \"TRADING\", \"topic\": \"order.0901351\", \"data\": { \"eventType\": \"orderEvent\", \"clientRequestId\": \"req-0001\", \"orderId\": \"ORD123456\", \"orderStatus\": \"FF\", \"...\": \"...\" } }\n```\n\nCấu trúc dữ liệu thông báo giống với channel `TRADING` của FastConnect WebSocket API (dữ liệu thị trường) — xem chi tiết field tại [Sub/Unsub Trading Data](https://developers.ssi.com.vn/docs/api-reference/subscribeUnsubscribeTradingData)."
+      payload:
+        $ref: "#/components/schemas/TradingApiNotification"
+
+    TradingApiErrorResponse:
+      name: TradingApiErrorResponse
+      title: "Response lỗi (default)"
+      contentType: application/json
+      correlationId:
+        description: "`id` — trả lại đúng `id` của request."
+        location: "$message.payload#/id"
+      description: "Response lỗi chung của WebSocket API. Với `fco.place` và `fco.cancel`, nếu bị từ chối response trả về `error.code: \"FCO_ERROR\"`. Với `fco.statusHistory`, nếu bị lỗi HOẶC danh sách lịch sử rỗng, response trả về `error.code: \"FCO_ERROR\"`."
+      payload:
+        $ref: "#/components/schemas/TradingApiErrorResponse"
+
+  schemas:
+    WsMethod:
+      type: string
+      description: "`SUBSCRIBE|UNSUBSCRIBE|LIST_SUBSCRIPTION|PING|PONG`"
+      enum:
+        - SUBSCRIBE
+        - UNSUBSCRIBE
+        - LIST_SUBSCRIPTION
+        - PING
+        - PONG
+
+    WsChannel:
+      type: string
+      description: "`TRADING|DATA|HEARTBEAT`"
+      enum:
+        - TRADING
+        - DATA
+        - HEARTBEAT
+
+    SubscribeRequest:
+      type: object
+      description: ""
+      properties:
+        method:
+          type: string
+          enum:
+            - SUBSCRIBE
+          description: ""
+        channel:
+          type: string
+          enum:
+            - TRADING
+            - DATA
+          description: ""
+        topics:
+          type: array
+          description: ""
+          items:
+            type: string
+            description: ""
+
+    UnsubscribeRequest:
+      type: object
+      description: ""
+      properties:
+        method:
+          type: string
+          enum:
+            - UNSUBSCRIBE
+          description: ""
+        channel:
+          type: string
+          enum:
+            - TRADING
+            - DATA
+          description: ""
+        topics:
+          type: array
+          description: ""
+          items:
+            type: string
+            description: ""
+
+    ListSubscriptionRequest:
+      type: object
+      description: ""
+      properties:
+        method:
+          type: string
+          enum:
+            - LIST_SUBSCRIPTION
+          description: ""
+
+    ListSubscriptionResponse:
+      type: object
+      description: ""
+      properties:
+        trading:
+          type: string
+          description: ""
+        data:
+          type: string
+          description: ""
+
+    Ping:
+      type: object
+      description: ""
+      properties:
+        method:
+          type: string
+          enum:
+            - PING
+          description: ""
+        channel:
+          type: string
+          enum:
+            - HEARTBEAT
+          description: ""
+        time:
+          type: string
+          description: ""
+          examples:
+            - "dd-mm-yyyy hh-mm-ss"
+
+    Pong:
+      type: object
+      description: ""
+      properties:
+        method:
+          type: string
+          enum:
+            - PONG
+          description: ""
+        channel:
+          type: string
+          enum:
+            - HEARTBEAT
+          description: ""
+        time:
+          type: string
+          description: ""
+          examples:
+            - "dd-mm-yyyy hh-mm-ss"
+
+    OrderEvent:
+      type: object
+      properties:
+        eventType:
+          type: string
+          description: "Loại event: \"orderEvent\""
+        notifyId:
+          type: integer
+          format: int64
+          description: "Số serial của event message"
+        connectionId:
+          type: string
+          description: "Định danh phiên kết nối stream của client"
+        clientRequestId:
+          type: string
+          description: "Định danh lệnh trong ngày, tự động sinh nếu không truyền. Dùng để đối chiếu tương ứng với lệnh từ đầu client"
+        orderId:
+          type: string
+          description: "Số định danh lệnh được ghi nhận tại hệ thống giao dịch"
+        symbol:
+          type: string
+          description: "Mã chứng khoán"
+        side:
+          type: string
+          description: "Chiều mua/bán của lệnh (B → BUY / S → SELL)"
+        orderType:
+          type: string
+          description: "Loại lệnh (LO, ATO, ATC,...)"
+        accountNo:
+          type: string
+          description: "Số tài khoản đặt lệnh"
+        price:
+          type: string
+          description: "Giá"
+        quantity:
+          type: number
+          description: "Khối lượng"
+        cancelQty:
+          type: number
+          description: "Khối lượng đã hủy"
+        osQty:
+          type: number
+          description: "Khối lượng chưa khớp"
+        filledQty:
+          type: number
+          description: "Khối lượng khớp"
+        inputTime:
+          type: string
+          description: "Thời gian tiếp nhận đặt lệnh (format theo quy chuẩn chung)"
+        modifiedTime:
+          type: string
+          description: "Thời gian sửa, cập nhật trạng thái lệnh (format theo quy chuẩn chung)"
+        orderStatus:
+          type: string
+          description: "Trạng thái lệnh, tham chiếu theo bảng trạng thái lệnh"
+        rejectReason:
+          type: string
+          description: "Lý do từ chối"
+        errorCode:
+          type: string
+          description: "Mã lỗi lệnh"
+        errorMessage:
+          type: string
+          description: "Thông tin lệnh lỗi"
+
+    OrderMatchEvent:
+      type: object
+      properties:
+        eventType:
+          type: string
+          description: "Loại event: \"orderMatchEvent\""
+        notifyId:
+          type: integer
+          format: int64
+          description: "Số serial của event message"
+        connectionId:
+          type: string
+          description: "Định danh phiên kết nối stream của client"
+        clientRequestId:
+          type: string
+          description: "Định danh lệnh trong ngày, tự động sinh nếu không truyền. Dùng để đối chiếu tương ứng với lệnh từ đầu client"
+        orderId:
+          type: string
+          description: "Số định danh lệnh được ghi nhận tại hệ thống giao dịch"
+        symbol:
+          type: string
+          description: "Mã chứng khoán"
+        side:
+          type: string
+          description: "Chiều mua/bán của lệnh (B → BUY / S → SELL)"
+        accountNo:
+          type: string
+          description: "Số tài khoản đặt lệnh"
+        matchPrice:
+          type: string
+          description: "Giá khớp"
+        matchQty:
+          type: number
+          description: "Khối lượng khớp"
+        matchTime:
+          type: string
+          description: "Thời gian khớp (format theo quy chuẩn chung)"
+
+    ClientPortfolioEvent:
+      type: object
+      properties:
+        eventType:
+          type: string
+          description: "Loại event: \"clientPortfolioEvent\""
+        notifyId:
+          type: integer
+          format: int64
+          description: "Số serial của event message"
+        connectionId:
+          type: string
+          description: "Định danh phiên kết nối stream của client"
+        symbol:
+          type: string
+          description: "Mã chứng khoán"
+        accountNo:
+          type: string
+          description: "Số tài khoản"
+        longQty:
+          type: number
+          description: "Vị thế long"
+        shortQty:
+          type: number
+          description: "Vị thế short"
+        net:
+          type: number
+          description: "Vị thế net (tính bằng long - short)"
+        bidAvgPrice:
+          type: string
+          description: "Giá mua trung bình"
+        askAvgPrice:
+          type: string
+          description: "Giá bán trung bình"
+        tradePrice:
+          type: string
+          description: "Giá khớp"
+        marketPrice:
+          type: string
+          description: "Giá thị trường"
+        floatingPL:
+          type: string
+          description: "Lãi/lỗ tạm tính"
+        tradingPL:
+          type: string
+          description: "Lãi/lỗ đã chốt"
+
+    FcoEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          description: "Loại event — \"fcoEvent\""
+        data:
+          type: object
+          description: "Thông tin chi tiết của event"
+          properties:
+            fcoId:
+              type: string
+              description: "ID lệnh điều kiện — UUID"
+            notifyID:
+              type: number
+              description: "ID thông báo"
+            processStatus:
+              type: string
+              description: "Trạng thái xử lý lệnh điều kiện — Tham khảo Phụ lục FCO"
+            matchedQuantity:
+              type: number
+              description: "Khối lượng đã khớp"
+            isPlaceOrder:
+              type: boolean
+              description: "Trạng thái phát sinh lệnh con — true: Có lệnh thực phát sinh (xuất hiện lệnh ở Orderbook). false: Chưa có lệnh thực phát sinh"
+            instrumentID:
+              type: string
+              description: "Mã chứng khoán. Đối với phái sinh, truyền theo mã tổng quát hoặc chi tiết: 1M, 2M, 1Q, 2Q, VN30FYYMM"
+            quantity:
+              type: number
+              description: "Khối lượng muốn đặt lệnh"
+            price:
+              type: string
+              description: "Giá đặt (đơn vị đồng) — Giá số (vd: \"23500\") hoặc \"MP\", \"MOK\", \"MTL\""
+            account:
+              type: string
+              description: "Tiểu khoản đặt lệnh (ví dụ tài khoản đuôi 8, đuôi 6)"
+            updatedTime:
+              type: string
+              description: "Thời gian cập nhật (Unix timestamp milliseconds) — \"1751966448000\""
+            status:
+              type: string
+              description: "Mã trạng thái — Tham chiếu bảng mã lỗi"
+            message:
+              type: string
+              description: "Thông báo kết quả hoặc lỗi"
+            username:
+              type: string
+              description: "ID người dùng tại SSI"
+
+    TradeEvent:
+      type: object
+      properties:
+        s:
+          type: string
+          title: symbol
+          description: "Mã chứng khoán"
+        t:
+          type: string
+          title: tradingTime
+          description: "YYYY/MM/DD HH:mi:ss"
+        p:
+          type: string
+          title: price
+          description: "Giá khớp"
+        q:
+          type: string
+          title: quantity
+          description: "Khối lượng khớp"
+        a:
+          type: string
+          title: avgPrice
+          description: "Giá khớp trung bình"
+        si:
+          type: string
+          title: side
+          description: "B: Buy Up (mua chủ động) / S: Sell Down (bán chủ động)"
+        o:
+          type: string
+          title: openPrice
+          description: "Giá mở cửa"
+        h:
+          type: string
+          title: highPrice
+          description: "Giá cao nhất"
+        l:
+          type: string
+          title: lowPrice
+          description: "Giá thấp nhất"
+        v:
+          type: string
+          title: totalVol
+          description: "Tổng khối lượng khớp trong ngày"
+      examples:
+        - s: "SSI"
+          t: "2026/07/29 09:15:32"
+          p: "45.50"
+          q: "1000"
+          a: "45.35"
+          si: "B"
+          o: "45.00"
+          h: "45.80"
+          l: "44.90"
+          v: "1250000"
+
+    RoomEvent:
+      type: object
+      properties:
+        s:
+          type: string
+          title: symbol
+          description: "Mã chứng khoán"
+        t:
+          type: string
+          title: tradingtime
+          description: "YYYY/MM/DD HH:mi:ss"
+        tr:
+          type: string
+          title: totalRoom
+          description: "Tổng room ngoại"
+        cr:
+          type: string
+          title: currentRoom
+          description: "Room ngoại còn lại"
+        bq:
+          type: string
+          title: buyQuantity
+          description: "Khối lượng mua của khối ngoại"
+        bv:
+          type: string
+          title: buyValue
+          description: "Giá trị mua của khối ngoại"
+        sq:
+          type: string
+          title: sellQuantity
+          description: "Khối lượng bán của khối ngoại"
+        sv:
+          type: string
+          title: sellValue
+          description: "Giá trị bán của khối ngoại"
+      examples:
+        - s: "SSI"
+          t: "2026/07/29 09:15:32"
+          tr: "1500000"
+          cr: "980000"
+          bq: "5000"
+          bv: "227500000"
+          sq: "3000"
+          sv: "136500000"
+
+    PriceLevel:
+      type: array
+      description: "[price, quantity]"
+      minItems: 2
+      maxItems: 2
+      items:
+        type: string
+        description: ""
+
+    QuoteEvent:
+      type: object
+      properties:
+        s:
+          type: string
+          description: "Mã chứng khoán"
+        t:
+          type: string
+          description: "tradingtime, YYYY/MM/DD HH:mi:ss"
+        bids:
+          type: array
+          description: "Danh sách mức giá mua [price, quantity]. Bản nâng cấp sau sẽ chỉ trả ra các giá trị thay đổi."
+          items:
+            $ref: "#/components/schemas/PriceLevel"
+        asks:
+          type: array
+          description: "Danh sách mức giá bán [price, quantity]. Bản nâng cấp sau sẽ chỉ trả ra các giá trị thay đổi."
+          items:
+            $ref: "#/components/schemas/PriceLevel"
+      examples:
+        - s: "SSI"
+          t: "2026/07/29 09:15:32"
+          bids:
+            - ["45.45", "3200"]
+            - ["45.40", "1500"]
+            - ["45.35", "4200"]
+            - ["45.30", "2100"]
+            - ["45.25", "3300"]
+          asks:
+            - ["45.50", "2800"]
+            - ["45.55", "1900"]
+            - ["45.60", "3600"]
+            - ["45.65", "2200"]
+            - ["45.70", "4100"]
+
+    PutEvent:
+      type: object
+      properties:
+        s:
+          type: string
+          title: symbol
+          description: "Mã chứng khoán"
+        t:
+          type: string
+          title: tradingtime
+          description: "YYYY/MM/DD HH:mi:ss"
+        p:
+          type: string
+          title: price
+          description: "Giá khớp thỏa thuận"
+        q:
+          type: string
+          title: quantity
+          description: "Khối lượng khớp thỏa thuận"
+        tq:
+          type: string
+          title: TotalQuantity
+          description: "Tổng khối lượng thỏa thuận trong ngày"
+        tv:
+          type: string
+          title: TotalValue
+          description: "Tổng giá trị thỏa thuận trong ngày"
+      examples:
+        - s: "SSI"
+          t: "2026/07/29 10:05:12"
+          p: "45.00"
+          q: "50000"
+          tq: "350000"
+          tv: "15750000000"
+
+    OddlotEvent:
+      type: object
+      properties:
+        s:
+          type: string
+          title: symbol
+          description: "Mã chứng khoán"
+        t:
+          type: string
+          title: tradingtime
+          description: "YYYY/MM/DD HH:mi:ss"
+        p:
+          type: string
+          title: price
+          description: "Giá khớp lô lẻ"
+        q:
+          type: string
+          title: quantity
+          description: "Khối lượng khớp lô lẻ"
+        bids:
+          type: array
+          description: "Danh sách mức giá mua lô lẻ [price, quantity]"
+          items:
+            $ref: "#/components/schemas/PriceLevel"
+        asks:
+          type: array
+          description: "Danh sách mức giá bán lô lẻ [price, quantity]"
+          items:
+            $ref: "#/components/schemas/PriceLevel"
+      examples:
+        - s: "SSI"
+          t: "2026/07/29 09:16:05"
+          p: "45.50"
+          q: "80"
+          bids:
+            - ["45.45", "50"]
+            - ["45.40", "30"]
+          asks:
+            - ["45.55", "40"]
+            - ["45.60", "20"]
+
+    MarketEvent:
+      type: object
+      properties:
+        s:
+          type: string
+          title: symbol
+          description: "Mã chứng khoán"
+        b:
+          type: string
+          title: board
+          description: "HOSE, HNX, UPCOM"
+        t:
+          type: string
+          title: tradingDate
+          description: "YYYY/MM/DD"
+        ce:
+          type: string
+          title: ceilingPrice
+          description: "Giá trần"
+        fl:
+          type: string
+          title: floorPrice
+          description: "Giá sàn"
+        ref:
+          type: string
+          title: refPrice
+          description: "Giá tham chiếu"
+      examples:
+        - s: "SSI"
+          b: "HOSE"
+          t: "2026/07/29"
+          ce: "48.50"
+          fl: "42.10"
+          ref: "45.30"
+
+    MarketFlagEvent:
+      type: object
+      properties:
+        b:
+          type: string
+          title: board
+          description: "HOSE, HNX, UPCOM, DERIVATIVES"
+        t:
+          type: string
+          title: tradingTime
+          description: "YYYY/MM/DD HH:mm:ss"
+        f:
+          type: string
+          title: flag
+          description: "Cờ phiên: ATO, LO, ATC, v.v."
+      examples:
+        - b: "HOSE"
+          t: "2026/07/29 09:00:00"
+          f: "ATO"
+
+    AuthPayload:
+      type: object
+      description: "Tài liệu mô tả việc lấy token từ `client_id`, `api_key`, `api_secret` qua API auth. Sau đó dùng token để kết nối stream."
+      properties:
+        client_id:
+          type: string
+          description: ""
+        api_key:
+          type: string
+          description: ""
+        api_secret:
+          type: string
+          description: ""
+        access_token:
+          type: string
+          description: ""
+
+    TradingApiMethod:
+      type: string
+      description: "Tập `method` của WebSocket API (`wss://api.ssi.com.vn/ws/v3/trading`)."
+      enum:
+        - order.place
+        - order.amend
+        - order.cancel
+        - fco.place
+        - fco.cancel
+        - fco.orderbook
+        - fco.list
+        - fco.statusHistory
+        - query.position
+        - query.maxBuySell
+        - query.accountBalance
+        - query.ppmmrAccount
+        - query.orderBook
+        - SUBSCRIBE
+        - UNSUBSCRIBE
+        - ping_pong
+        - ping_only
+
+    TradingApiRateLimit:
+      type: object
+      description: ""
+      properties:
+        limit:
+          type: integer
+          description: ""
+        remaining:
+          type: integer
+          description: ""
+        resetMs:
+          type: integer
+          description: ""
+
+    TradingApiConnectionRejectMessage:
+      type: object
+      description: "Message server gửi sau `HTTP 101` để mô tả lý do từ chối, rồi đóng kết nối."
+      properties:
+        code:
+          type: integer
+          description: ""
+        msg:
+          type: string
+          description: ""
+      examples:
+        - code: 401
+          msg: "Invalid or expired token"
+
+    TradingApiPingPongRequest:
+      type: object
+      description: "Message client gửi để subscribe/unsubscribe hoặc ping/pong kiểm tra kết nối. Không có trường `id`."
+      required:
+        - method
+      properties:
+        method:
+          type: string
+          description: "Hành động của request. Không phân biệt hoa thường."
+          enum:
+            - ping_pong
+            - ping_only
+      examples:
+        - method: "ping_pong"
+
+    TradingApiPingPongResponse:
+      type: object
+      description: ""
+      properties:
+        method:
+          type: string
+          description: ""
+        channel:
+          type: string
+          description: ""
+          enum:
+            - HEARTBEAT
+        status:
+          type: string
+          description: ""
+        message:
+          type: string
+          description: ""
+      examples:
+        - method: "ping_pong"
+          channel: "HEARTBEAT"
+          status: "ok"
+          message: "pong"
+
+    OrderPlaceRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - signature
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: "Định danh do client tự sinh để đối chiếu response."
+        method:
+          type: string
+          description: ""
+          enum:
+            - order.place
+        params:
+          type: object
+          description: ""
+          required:
+            - symbol
+            - side
+            - accountNo
+            - quantity
+            - deviceId
+          properties:
+            symbol:
+              type: string
+              description: "Mã chứng khoán."
+            side:
+              type: string
+              description: "Chiều mua hoặc bán của lệnh. (B - Buy/Mua, S - Sell/Bán)"
+            orderType:
+              type: string
+              description: "Loại lệnh giao dịch. Mặc định `LO` nếu để trống."
+            accountNo:
+              type: string
+              description: "Số tài khoản giao dịch."
+            price:
+              type:
+                - string
+                - "null"
+              description: "Giá đặt lệnh. Bắt buộc và phải > 0 khi `orderType` là `LO`; không bắt buộc với các loại lệnh khác."
+            quantity:
+              type: number
+              description: "Khối lượng đặt lệnh."
+            clientRequestId:
+              type:
+                - string
+                - "null"
+              description: "Định danh lệnh do client tạo ra, dùng để đối chiếu trong response và event push sau này. Khi để trống, hệ thống tự sinh `clientRequestId`."
+            deviceId:
+              type: string
+              description: "Định danh thiết bị gửi yêu cầu đặt lệnh (MAC address hoặc IMEI)."
+            userAgent:
+              type:
+                - string
+                - "null"
+              description: "Thông tin trình duyệt/ứng dụng gửi yêu cầu."
+        signature:
+          type: string
+          description: "Chữ ký RSA+SHA256 (base64) trên nội dung `params`, dùng SecretKey của API Key. Bắt buộc."
+        timestamp:
+          type: integer
+          description: "Unix timestamp (mili-giây) tại thời điểm gửi request, dùng làm input ký số."
+
+    OrderPlaceResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - order.place
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            clientRequestId:
+              type: string
+              description: ""
+            orderStatus:
+              type: string
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    OrderAmendRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - signature
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - order.amend
+        params:
+          type: object
+          description: "Bắt buộc truyền đúng một trong hai trường `orderId`/`clientRequestId` để xác định lệnh cần sửa."
+          required:
+            - accountNo
+            - deviceId
+          properties:
+            clientModifyId:
+              type:
+                - string
+                - "null"
+              description: "Định danh sửa lệnh do client tạo ra. Khi để trống, hệ thống tự sinh."
+            clientRequestId:
+              type:
+                - string
+                - "null"
+              description: "Định danh lệnh gốc do client tạo ra khi đặt lệnh. Dùng XOR với `orderId`."
+            orderId:
+              type:
+                - string
+                - "null"
+              description: "Định danh lệnh gốc sinh bởi hệ thống SSI. Dùng XOR với `clientRequestId`."
+            accountNo:
+              type: string
+              description: "Số tài khoản giao dịch."
+            symbol:
+              type:
+                - string
+                - "null"
+              description: "Mã chứng khoán."
+            side:
+              type:
+                - string
+                - "null"
+              description: "Chiều mua/bán."
+            orderType:
+              type:
+                - string
+                - "null"
+              description: "Loại lệnh."
+            price:
+              type:
+                - string
+                - "null"
+              description: "Giá thay đổi của lệnh."
+            quantity:
+              type:
+                - number
+                - "null"
+              description: "Khối lượng thay đổi của lệnh."
+            deviceId:
+              type: string
+              description: "Định danh thiết bị gửi yêu cầu sửa lệnh."
+            userAgent:
+              type:
+                - string
+                - "null"
+              description: "Thông tin trình duyệt/ứng dụng gửi yêu cầu."
+        signature:
+          type: string
+          description: "Chữ ký RSA+SHA256 (base64). Bắt buộc."
+        timestamp:
+          type: integer
+          description: ""
+
+    OrderAmendResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - order.amend
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            clientRequestId:
+              type: string
+              description: ""
+            orderId:
+              type: string
+              description: ""
+            orderStatus:
+              type: string
+              description: ""
+            clientModifyId:
+              type: string
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    OrderCancelRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - signature
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - order.cancel
+        params:
+          type: object
+          description: "Bắt buộc truyền đúng một trong hai trường `orderId`/`clientRequestId` để xác định lệnh cần hủy."
+          required:
+            - accountNo
+            - deviceId
+          properties:
+            clientCancelId:
+              type:
+                - string
+                - "null"
+              description: "Định danh hủy lệnh do client tạo ra. Khi để trống, hệ thống tự sinh."
+            clientRequestId:
+              type:
+                - string
+                - "null"
+              description: "Định danh lệnh gốc do client tạo ra khi đặt lệnh. Dùng XOR với `orderId`."
+            orderId:
+              type:
+                - string
+                - "null"
+              description: "Định danh lệnh gốc sinh bởi hệ thống SSI. Dùng XOR với `clientRequestId`."
+            accountNo:
+              type: string
+              description: "Số tài khoản giao dịch."
+            deviceId:
+              type: string
+              description: "Định danh thiết bị gửi yêu cầu hủy lệnh."
+            userAgent:
+              type:
+                - string
+                - "null"
+              description: "Thông tin trình duyệt/ứng dụng gửi yêu cầu."
+        signature:
+          type: string
+          description: "Chữ ký RSA+SHA256 (base64). Bắt buộc."
+        timestamp:
+          type: integer
+          description: ""
+
+    OrderCancelResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - order.cancel
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            clientRequestId:
+              type: string
+              description: ""
+            orderId:
+              type: string
+              description: ""
+            orderStatus:
+              type: string
+              description: ""
+            clientCancelId:
+              type: string
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    FcoPlaceRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - signature
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.place
+        params:
+          type: object
+          description: ""
+          required:
+            - symbol
+            - side
+            - price
+            - quantity
+            - accountNo
+            - deviceId
+          properties:
+            symbol:
+              type: string
+              description: "Mã chứng khoán cơ sở/phái sinh."
+            side:
+              type: string
+              description: "Chiều mua/bán."
+            type:
+              type:
+                - string
+                - "null"
+              description: "Loại lệnh điều kiện. Tham khảo phụ lục Tham khảo đặt lệnh điều kiện."
+            price:
+              type: string
+              description: "Giá đặt lệnh điều kiện. Bắt buộc và phải > 0."
+            priceSlip:
+              type:
+                - number
+                - "null"
+              description: "Biên độ trượt giá cho phép."
+            quantity:
+              type: integer
+              description: "Khối lượng đặt lệnh."
+            accountNo:
+              type: string
+              description: "Số tài khoản giao dịch."
+            from:
+              type:
+                - string
+                - "null"
+              description: "Thời gian hiệu lực bắt đầu, định dạng `yyyy/MM/dd HH:mm:ss`. Nếu có `to`, `from` phải <= `to`."
+            to:
+              type:
+                - string
+                - "null"
+              description: "Thời gian hiệu lực kết thúc, định dạng `yyyy/MM/dd HH:mm:ss`."
+            stopPrice:
+              type:
+                - number
+                - "null"
+              description: "Giá kích hoạt (stop price)."
+            activePrice:
+              type:
+                - number
+                - "null"
+              description: "Giá kích hoạt lệnh điều kiện."
+            trailingAmount:
+              type:
+                - number
+                - "null"
+              description: "Biên độ trailing stop."
+            tpActivePrice:
+              type:
+                - number
+                - "null"
+              description: "Giá kích hoạt Take Profit."
+            slActivePrice:
+              type:
+                - number
+                - "null"
+              description: "Giá kích hoạt Stop Loss."
+            tpPrice:
+              type:
+                - string
+                - "null"
+              description: "Giá chốt lời (Take Profit)."
+            slPrice:
+              type:
+                - string
+                - "null"
+              description: "Giá cắt lỗ (Stop Loss)."
+            tpSlip:
+              type:
+                - number
+                - "null"
+              description: "Biên độ trượt giá cho Take Profit."
+            slSlip:
+              type:
+                - number
+                - "null"
+              description: "Biên độ trượt giá cho Stop Loss."
+            operator:
+              type:
+                - string
+                - "null"
+              description: "Toán tử so sánh điều kiện kích hoạt."
+            code:
+              type:
+                - string
+                - "null"
+              description: "Mã OTP xác thực giao dịch (bắt buộc nếu tài khoản có bật xác thực OTP)."
+            deviceId:
+              type: string
+              description: "Định danh thiết bị gửi yêu cầu."
+            userAgent:
+              type:
+                - string
+                - "null"
+              description: "Thông tin trình duyệt/ứng dụng gửi yêu cầu."
+        signature:
+          type: string
+          description: "Chữ ký RSA+SHA256 (base64). Bắt buộc."
+        timestamp:
+          type: integer
+          description: ""
+
+    FcoPlaceResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.place
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            fcoId:
+              type: string
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    FcoCancelRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - signature
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.cancel
+        params:
+          type: object
+          description: ""
+          required:
+            - fcoId
+          properties:
+            fcoId:
+              type: string
+              description: "Định danh lệnh điều kiện cần hủy."
+            code:
+              type:
+                - string
+                - "null"
+              description: "Mã OTP/xác thực giao dịch."
+            deviceId:
+              type:
+                - string
+                - "null"
+              description: "Định danh thiết bị gửi yêu cầu."
+            userAgent:
+              type:
+                - string
+                - "null"
+              description: "Thông tin trình duyệt/ứng dụng gửi yêu cầu."
+        signature:
+          type: string
+          description: "Chữ ký RSA+SHA256 (base64). Bắt buộc."
+        timestamp:
+          type: integer
+          description: ""
+
+    FcoCancelResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.cancel
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            fcoId:
+              type: string
+              description: ""
+            username:
+              type: string
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    FcoOrderbookRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.orderbook
+        params:
+          type: object
+          description: ""
+          required:
+            - fcoId
+          properties:
+            fcoId:
+              type: string
+              description: "Định danh lệnh điều kiện."
+            pageIndex:
+              type: integer
+              description: "Chỉ số trang, bắt đầu từ 1."
+            pageSize:
+              type: integer
+              description: "Số lượng bản ghi trên mỗi trang."
+        timestamp:
+          type: integer
+          description: ""
+
+    FcoOrderbookResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.orderbook
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            data:
+              type: array
+              description: ""
+              items:
+                type: object
+                description: ""
+                properties:
+                  fcoId:
+                    type: string
+                    description: ""
+                  accountNo:
+                    type: string
+                    description: ""
+                  quantity:
+                    type: number
+                    description: ""
+                  price:
+                    type: string
+                    description: ""
+                  symbol:
+                    type: string
+                    description: ""
+                  side:
+                    type: string
+                    description: ""
+                  orderType:
+                    type: string
+                    description: ""
+                  isMainOrder:
+                    type: boolean
+                    description: ""
+                  isAttachedOrder:
+                    type: boolean
+                    description: ""
+                  createdTime:
+                    type: string
+                    description: ""
+                  updatedTime:
+                    type: string
+                    description: ""
+                  uniqueId:
+                    type: string
+                    description: ""
+                  orderId:
+                    type: string
+                    description: ""
+                  matchedQuantity:
+                    type: number
+                    description: ""
+                  osQuantity:
+                    type: number
+                    description: ""
+                  avgPrice:
+                    type: number
+                    description: ""
+                  status:
+                    type: string
+                    description: ""
+                  detail:
+                    type: string
+                    description: ""
+                  type:
+                    type: string
+                    description: ""
+            pageSize:
+              type: integer
+              description: ""
+            pageIndex:
+              type: integer
+              description: ""
+            itemsCount:
+              type: integer
+              description: ""
+            pagesCount:
+              type: integer
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    FcoListRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.list
+        params:
+          type: object
+          description: ""
+          required:
+            - accountNo
+          properties:
+            fcoId:
+              type:
+                - string
+                - "null"
+              description: "Lọc theo định danh lệnh điều kiện."
+            type:
+              type:
+                - string
+                - "null"
+              description: "Lọc theo loại lệnh điều kiện."
+            processStatus:
+              type:
+                - string
+                - "null"
+              description: "Lọc theo trạng thái xử lý."
+            symbol:
+              type:
+                - string
+                - "null"
+              description: "Lọc theo mã chứng khoán."
+            side:
+              type:
+                - string
+                - "null"
+              description: "Lọc theo chiều mua/bán."
+            accountNo:
+              type: string
+              description: "Số tài khoản giao dịch."
+            from:
+              type:
+                - string
+                - "null"
+              description: "Lọc từ ngày, định dạng `yyyy/MM/dd`. Nếu có `to`, `from` phải <= `to`."
+            to:
+              type:
+                - string
+                - "null"
+              description: "Lọc đến ngày, định dạng `yyyy/MM/dd`."
+            pageIndex:
+              type: integer
+              description: "Chỉ số trang, bắt đầu từ 1."
+            pageSize:
+              type: integer
+              description: "Số lượng bản ghi trên mỗi trang."
+        timestamp:
+          type: integer
+          description: ""
+
+    FcoListResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.list
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            data:
+              type: array
+              description: ""
+              items:
+                type: object
+                description: ""
+                properties:
+                  fcoId:
+                    type: string
+                    description: ""
+                  username:
+                    type: string
+                    description: ""
+                  accountNo:
+                    type: string
+                    description: ""
+                  quantity:
+                    type: number
+                    description: ""
+                  price:
+                    type: string
+                    description: ""
+                  priceSlip:
+                    type: number
+                    description: ""
+                  symbol:
+                    type: string
+                    description: ""
+                  orderType:
+                    type: string
+                    description: ""
+                  matchedQuantity:
+                    type: number
+                    description: ""
+                  isPlaceOrder:
+                    type: boolean
+                    description: ""
+                  status:
+                    type: string
+                    description: ""
+                  detail:
+                    type: string
+                    description: ""
+                  from:
+                    type: string
+                    description: ""
+                  to:
+                    type: string
+                    description: ""
+                  type:
+                    type: string
+                    description: ""
+                  params:
+                    type: object
+                    description: ""
+                    properties:
+                      side:
+                        type: string
+                        description: ""
+                      stopPrice:
+                        type: number
+                        description: ""
+                      trailingAmount:
+                        type: number
+                        description: ""
+                      operator:
+                        type: string
+                        description: ""
+            pageSize:
+              type: integer
+              description: ""
+            pageIndex:
+              type: integer
+              description: ""
+            itemsCount:
+              type: integer
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    FcoStatusHistoryRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.statusHistory
+        params:
+          type: object
+          description: ""
+          required:
+            - fcoId
+          properties:
+            fcoId:
+              type: string
+              description: "Định danh lệnh điều kiện."
+        timestamp:
+          type: integer
+          description: ""
+
+    FcoStatusHistoryResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - fco.statusHistory
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            data:
+              type: array
+              description: ""
+              items:
+                type: object
+                description: ""
+                properties:
+                  state:
+                    type: string
+                    description: ""
+                  time:
+                    type: string
+                    description: ""
+                  code:
+                    type: integer
+                    description: ""
+                  detail:
+                    type: string
+                    description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    QueryPositionRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.position
+        params:
+          type: object
+          description: ""
+          required:
+            - accountNo
+          properties:
+            accountNo:
+              type: string
+              description: "Tài khoản giao dịch cần lấy thông tin vị thế."
+            clientId:
+              type:
+                - string
+                - "null"
+              description: "Tài khoản 6 số định danh khách hàng tại SSI. Nếu số tài khoản là 003C123888 thì clientId = 123888."
+            querySummary:
+              type: boolean
+              description: "Nếu true, trả về tóm tắt vị thế phái sinh. Nếu false, trả về chi tiết từng vị thế. Chỉ áp dụng cho tài khoản phái sinh."
+        timestamp:
+          type: integer
+          description: ""
+
+    QueryPositionResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.position
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            equity:
+              type:
+                - array
+                - "null"
+              description: ""
+              items:
+                type: object
+                description: ""
+                properties:
+                  accountNo:
+                    type: string
+                    description: ""
+                  symbol:
+                    type: string
+                    description: ""
+                  quantity:
+                    type: string
+                    description: ""
+                  sellableQuantity:
+                    type: string
+                    description: ""
+            derivative:
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    QueryMaxBuySellRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.maxBuySell
+        params:
+          type: object
+          description: ""
+          required:
+            - accountNo
+            - symbol
+          properties:
+            accountNo:
+              type: string
+              description: "Tài khoản giao dịch cần kiểm tra khối lượng mua/bán tối đa."
+            symbol:
+              type: string
+              description: "Mã chứng khoán cần kiểm tra khối lượng mua/bán tối đa."
+            price:
+              type:
+                - number
+                - "null"
+              description: "Giá cần kiểm tra khối lượng mua/bán tối đa."
+        timestamp:
+          type: integer
+          description: ""
+
+    QueryMaxBuySellResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.maxBuySell
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            accountNo:
+              type: string
+              description: ""
+            maxBuyQty:
+              type: number
+              description: ""
+            marginRatio:
+              type: string
+              description: ""
+            purchasingPower:
+              type: number
+              description: ""
+            maxSellQty:
+              type: number
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    QueryAccountBalanceRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.accountBalance
+        params:
+          type: object
+          description: ""
+          required:
+            - accountNo
+          properties:
+            accountNo:
+              type: string
+              description: "Tài khoản giao dịch cần lấy số dư."
+            clientId:
+              type:
+                - string
+                - "null"
+              description: "Tài khoản 6 số định danh khách hàng tại SSI. Nếu số tài khoản là 003C123888 thì clientId = 123888."
+        timestamp:
+          type: integer
+          description: ""
+
+    QueryAccountBalanceResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.accountBalance
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            equity:
+              type:
+                - object
+                - "null"
+              description: ""
+              properties:
+                accountNo:
+                  type: string
+                  description: ""
+                accountBalance:
+                  type: string
+                  description: ""
+                withdrawable:
+                  type: string
+                  description: ""
+            derivative:
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    QueryPpmmrAccountRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.ppmmrAccount
+        params:
+          type: object
+          description: ""
+          required:
+            - accountNo
+          properties:
+            accountNo:
+              type: string
+              description: "Tài khoản giao dịch cần lấy thông tin PP/MMR."
+        timestamp:
+          type: integer
+          description: ""
+
+    QueryPpmmrAccountResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.ppmmrAccount
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            equity:
+              type:
+                - object
+                - "null"
+              description: ""
+              properties:
+                accountNo:
+                  type: string
+                  description: ""
+                purchasingPower:
+                  type: string
+                  description: ""
+                marginRatio:
+                  type: string
+                  description: ""
+            derivative:
+              description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    QueryOrderBookRequest:
+      type: object
+      required:
+        - id
+        - method
+        - params
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.orderBook
+        params:
+          type: object
+          description: ""
+          required:
+            - accountNo
+            - from
+            - to
+          properties:
+            accountNo:
+              type: string
+              description: "Tài khoản giao dịch cần lấy lịch sử sổ lệnh."
+            from:
+              type: string
+              description: "Thời gian bắt đầu để lọc lịch sử sổ lệnh, định dạng `yyyy/MM/dd`."
+            to:
+              type: string
+              description: "Thời gian kết thúc để lọc lịch sử sổ lệnh, định dạng `yyyy/MM/dd`. Phải >= `from`."
+            symbol:
+              type:
+                - string
+                - "null"
+              description: "Mã chứng khoán cần lọc."
+            orderStatus:
+              type:
+                - string
+                - "null"
+              description: "Trạng thái lệnh cần lọc. Tham khảo phụ lục Trạng thái lệnh & luồng trạng thái."
+            pageSize:
+              type: integer
+              description: "Số lượng bản ghi trên mỗi trang."
+            pageIndex:
+              type: integer
+              description: "Chỉ số trang, bắt đầu từ 1."
+        timestamp:
+          type: integer
+          description: ""
+
+    QueryOrderBookResponse:
+      type: object
+      description: ""
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+          enum:
+            - query.orderBook
+        status:
+          type: integer
+          description: ""
+        result:
+          type: object
+          description: ""
+          properties:
+            accountNo:
+              type: string
+              description: ""
+            totalRecord:
+              type: integer
+              description: ""
+            orderList:
+              type: array
+              description: ""
+              items:
+                type: object
+                description: ""
+                properties:
+                  clientRequestId:
+                    type: string
+                    description: ""
+                  orderId:
+                    type: string
+                    description: ""
+                  symbol:
+                    type: string
+                    description: ""
+                  side:
+                    type: string
+                    description: ""
+                  orderType:
+                    type: string
+                    description: ""
+                  quantity:
+                    type: string
+                    description: ""
+                  price:
+                    type: string
+                    description: ""
+                  filledQty:
+                    type: string
+                    description: ""
+                  cancelQty:
+                    type: string
+                    description: ""
+                  avgPrice:
+                    type: string
+                    description: ""
+                  inputTime:
+                    type: string
+                    description: ""
+                  modifiedTime:
+                    type: string
+                    description: ""
+                  orderStatus:
+                    type: string
+                    description: ""
+                  message:
+                    type: string
+                    description: ""
+        rateLimit:
+          $ref: "#/components/schemas/TradingApiRateLimit"
+
+    TradingApiSubscribeRequest:
+      type: object
+      description: "Message client gửi để subscribe/unsubscribe hoặc ping/pong kiểm tra kết nối. Không có trường `id`."
+      required:
+        - method
+      properties:
+        method:
+          type: string
+          description: "Hành động của request. Không phân biệt hoa thường."
+          enum:
+            - SUBSCRIBE
+        channel:
+          type: string
+          description: "Kênh dữ liệu cần đăng ký. Chỉ `TRADING` được hỗ trợ cho SUBSCRIBE/UNSUBSCRIBE (bỏ qua với PING_PONG/PING_ONLY)."
+          enum:
+            - TRADING
+        topics:
+          type: array
+          description: "Danh sách topic cần đăng ký/hủy đăng ký, cú pháp `{type}.{accountNo}` với `type` ∈ `order, portfolio`. Wildcard `*` cho accountNo **không được hỗ trợ** (khác với FastConnect WebSocket API) — mỗi topic phải chỉ định chính xác một `accountNo` thuộc quyền sở hữu của API Key. Rỗng khi UNSUBSCRIBE nghĩa là hủy toàn bộ topic đang subscribe."
+          items:
+            type: string
+            description: ""
+      examples:
+        - method: "SUBSCRIBE"
+          channel: "TRADING"
+          topics:
+            - "order.0901351"
+            - "portfolio.1231996"
+
+    TradingApiUnsubscribeRequest:
+      type: object
+      description: "Message client gửi để subscribe/unsubscribe hoặc ping/pong kiểm tra kết nối. Không có trường `id`."
+      required:
+        - method
+      properties:
+        method:
+          type: string
+          description: "Hành động của request. Không phân biệt hoa thường."
+          enum:
+            - UNSUBSCRIBE
+        channel:
+          type: string
+          description: "Kênh dữ liệu cần đăng ký. Chỉ `TRADING` được hỗ trợ cho SUBSCRIBE/UNSUBSCRIBE (bỏ qua với PING_PONG/PING_ONLY)."
+          enum:
+            - TRADING
+        topics:
+          type: array
+          description: "Danh sách topic cần đăng ký/hủy đăng ký, cú pháp `{type}.{accountNo}` với `type` ∈ `order, portfolio`. Wildcard `*` cho accountNo **không được hỗ trợ** (khác với FastConnect WebSocket API) — mỗi topic phải chỉ định chính xác một `accountNo` thuộc quyền sở hữu của API Key. Rỗng khi UNSUBSCRIBE nghĩa là hủy toàn bộ topic đang subscribe."
+          items:
+            type: string
+            description: ""
+
+    TradingApiSubscriptionAck:
+      type: object
+      description: "Nếu `status: \"error\"`, `message` mô tả lý do (topic sai cú pháp, thiếu quyền, hoặc tài khoản không thuộc quyền sở hữu)."
+      properties:
+        method:
+          type: string
+          description: ""
+        channel:
+          type: string
+          description: ""
+          enum:
+            - TRADING
+        status:
+          type: string
+          description: ""
+        message:
+          type: string
+          description: ""
+      examples:
+        - method: "SUBSCRIBE"
+          channel: "TRADING"
+          status: "ok"
+          message: "Subscribed to 2 topic(s)"
+
+    TradingApiNotification:
+      type: object
+      description: "Cấu trúc dữ liệu thông báo giống với channel `TRADING` của FastConnect WebSocket API (dữ liệu thị trường) — xem chi tiết field tại [Sub/Unsub Trading Data](https://developers.ssi.com.vn/docs/api-reference/subscribeUnsubscribeTradingData)."
+      properties:
+        channel:
+          type: string
+          description: ""
+          enum:
+            - TRADING
+        topic:
+          type: string
+          description: ""
+        data:
+          type: object
+          description: ""
+          properties:
+            eventType:
+              type: string
+              description: ""
+            clientRequestId:
+              type: string
+              description: ""
+            orderId:
+              type: string
+              description: ""
+            orderStatus:
+              type: string
+              description: ""
+      examples:
+        - channel: "TRADING"
+          topic: "order.0901351"
+          data:
+            eventType: "orderEvent"
+            clientRequestId: "req-0001"
+            orderId: "ORD123456"
+            orderStatus: "FF"
+
+    TradingApiErrorResponse:
+      type: object
+      description: "Response lỗi (`default`) của WebSocket API."
+      properties:
+        id:
+          type: string
+          description: ""
+        method:
+          type: string
+          description: ""
+        status:
+          type: integer
+          description: ""
+        error:
+          type: object
+          description: ""
+          properties:
+            code:
+              type: string
+              description: "Với `fco.place`/`fco.cancel`/`fco.statusHistory`, mã lỗi là `FCO_ERROR`."
+
+  securitySchemes:
+    tradingApiTokenQuery:
+      type: httpApiKey
+      name: token
+      in: query
+      description: "Query string: `wss://api.ssi.com.vn/ws/v3/trading?token=<jwt>` — cách ưu tiên thứ nhất."
+
+    tradingApiBearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Header: `Authorization: Bearer <jwt>` — cách ưu tiên thứ hai."

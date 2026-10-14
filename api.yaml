@@ -1,0 +1,3709 @@
+openapi: 3.1.0
+info:
+  title: "FastConnect API"
+  version: "3.2.0"
+servers:
+  - url: "https://api.ssi.com.vn"
+paths:
+  /api/v3/auth/token:
+    post:
+      tags:
+        - Authentication
+      operationId: ""
+      summary: "auth-token"
+      description: "Xác thực apiKey/apiSecret để lấy access token và refresh token (kèm thông tin hết hạn)."
+      parameters: []
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - apiKey
+                - apiSecret
+              properties:
+                apiKey:
+                  type: string
+                  description: "API key do SSI/FastConnect cấp cho ứng dụng."
+                apiSecret:
+                  type: string
+                  description: "API secret tương ứng với `apiKey`."
+                otp:
+                  type:
+                    - string
+                    - "null"
+                  description: "Mã OTP (SMS OTP hoặc SmartOTP) cần phải có nếu bạn muốn token cấp ra có quyền thực hiện giao dịch. Trường hợp chỉ sử dụng để truy vấn dữ liệu (data, query trading) thì không cần truyền OTP."
+                transactionId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Mã transaction trả về từ API `auth/requestOtp` khi tài khoản dùng 2FA loại SmartOTP và đã kích hoạt luồng phê duyệt qua ứng dụng iBoard."
+      responses:
+        "200":
+          description: "Thành công."
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  tokenType:
+                    type: string
+                    description: "Loại token dùng trong header Authorization."
+                  accessToken:
+                    type: string
+                    description: "Access token dùng để gọi các API nghiệp vụ."
+                  expiresAt:
+                    type: integer
+                    description: "Thời điểm hết hạn của access token theo timestamp (epoch milliseconds)."
+                  refreshToken:
+                    type: string
+                    description: "Refresh token dùng để xin access token mới khi hết hạn."
+                  refreshExpiresAt:
+                    type: integer
+                    description: "Thời điểm hết hạn của refresh token theo timestamp (epoch milliseconds)."
+        "400":
+          description: "Request không hợp lệ."
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  code:
+                    type: integer
+                    description: "Mã lỗi."
+                  msg:
+                    type: string
+                    description: "Chi tiết lỗi để hỗ trợ xử lý phía client."
+  /api/v3/auth/requestOtp:
+    post:
+      tags:
+        - Authentication
+      operationId: ""
+      summary: "auth-requestOtp"
+      description: "Gửi yêu cầu OTP phục vụ xác thực giao dịch. Với tài khoản 2FA loại SMS/Email, OTP sẽ được gửi về email/số điện thoại đã đăng ký. Với tài khoản 2FA loại SmartOTP, khách hàng nhận yêu cầu phê duyệt trên ứng dụng iBoard và có thể dùng `transactionId` trả về để gọi `auth/token`."
+      parameters: []
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - apiKey
+                - apiSecret
+              properties:
+                apiKey:
+                  type: string
+                  description: "API key do SSI/FastConnect cấp."
+                apiSecret:
+                  type: string
+                  description: "API secret tương ứng với `apiKey`."
+      responses:
+        "200":
+          description: "Thành công."
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  message:
+                    type: string
+                    description: "Thông báo kết quả xử lý yêu cầu OTP."
+                  transactionId:
+                    type:
+                      - string
+                      - "null"
+                    description: "Mã transaction trả về khi tài khoản dùng 2FA loại SmartOTP. Sau khi phê duyệt trên iBoard, dùng mã này để gọi `auth/token` trong vòng 30 giây để lấy token có quyền đặt lệnh."
+        "400":
+          description: "Request không hợp lệ."
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  code:
+                    type: integer
+                    description: "Mã lỗi."
+                  msg:
+                    type: string
+                    description: "Chi tiết lỗi để hỗ trợ xử lý phía client."
+  /api/v3/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      operationId: ""
+      summary: "auth-refresh"
+      description: "Làm mới access token bằng refresh token còn hiệu lực."
+      parameters: []
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: "Refresh token còn hiệu lực để cấp mới access token."
+      responses:
+        "200":
+          description: "Thành công."
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  tokenType:
+                    type: string
+                    description: "Loại token dùng trong header Authorization."
+                  accessToken:
+                    type: string
+                    description: "Access token dùng để gọi các API nghiệp vụ."
+                  expiresAt:
+                    type: integer
+                    description: "Thời điểm hết hạn của access token theo timestamp (epoch milliseconds)."
+                  refreshToken:
+                    type: string
+                    description: "Refresh token dùng để xin access token mới khi hết hạn."
+                  refreshExpiresAt:
+                    type: integer
+                    description: "Thời điểm hết hạn của refresh token theo timestamp (epoch milliseconds)."
+        "400":
+          description: "Request không hợp lệ."
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  code:
+                    type: integer
+                    description: "Mã lỗi."
+                  msg:
+                    type: string
+                    description: "Chi tiết lỗi để hỗ trợ xử lý phía client."
+  /api/v3/account/info:
+    get:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "account-info"
+      description: "Lấy danh sách tài khoản giao dịch của khách hàng. Tài khoản có thể một trong ba loại CASH (thường); MARGIN (ký quỹ); DERIVATIVE (phái sinh). * DERIVATIVE (phái sinh)"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: []
+                  properties:
+                    accountNo:
+                      type: string
+                      description: "Số tài khoản giao dịch."
+                      example: "string"
+                    accountType:
+                      type: string
+                      description: "Loại tài khoản giao dịch."
+                      example: "CASH"
+        "400":
+          description: "Yêu cầu không hợp lệ."
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  code:
+                    type: string
+                    description: "Mã lỗi do hệ thống định nghĩa, dùng để xác định và phân loại lỗi; tham khảo tài liệu phụ lục để biết các mã lỗi có thể xảy ra."
+                  msg:
+                    type: string
+                    description: "Thông điệp lỗi do hệ thống định nghĩa, giúp giải thích nguyên nhân và cách xử lý; nội dung tùy thuộc vào từng loại lỗi. Ngôn ngữ phản hồi phụ thuộc vào `Accept-Language` (en/vi); nếu thiếu hoặc không hợp lệ, hệ thống trả về tiếng Anh."
+  /api/v3/trading/order:
+    post:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-order-place"
+      description: "Đặt lệnh mới."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "X-Signature"
+          in: header
+          required: true
+          description: "Chữ ký RSA + SHA256 để xác thực tính toàn vẹn của request. Input bao gồm SecretKey + JSON body."
+          schema:
+            type: string
+          example: "sha256=abc123..."
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountNo
+                - symbol
+                - side
+                - orderType
+                - quantity
+                - price
+                - deviceId
+              properties:
+                clientRequestId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh lệnh do client tạo ra để đối chiếu phản hồi. Nếu có, nên đảm bảo tính duy nhất; nếu để trống, hệ thống tự sinh định danh và trả về trong response và streaming."
+                accountNo:
+                  type: string
+                  description: "Số tài khoản giao dịch."
+                  example: "string"
+                symbol:
+                  type: string
+                  description: "Mã chứng khoán."
+                  example: "string"
+                side:
+                  type: string
+                  description: "Chiều mua hoặc bán của lệnh giao dịch. (B- Buy/Mua, S- Sell/Bán)"
+                  example: "B"
+                orderType:
+                  type: string
+                  description: "Loại lệnh giao dịch. (LO - Limit Order/Lệnh giới hạn, ATO - At The Open/Lệnh mở cửa, ATC - At The Close/Lệnh đóng cửa, MP - Market Price/Giá thị trường)"
+                  example: "LO"
+                quantity:
+                  type: number
+                  description: "Khối lượng đặt lệnh."
+                  example: 0.1
+                price:
+                  type: string
+                  description: "Giá đặt lệnh. Bắt buộc khi orderType là LO (Lệnh giới hạn); không bắt buộc với các loại lệnh khác (ATO, ATC, MP)."
+                  example: "string"
+                deviceId:
+                  type: string
+                  description: "Định danh thiết bị thực hiện gửi yêu cầu đặt lệnh. Thông thường dùng MAC address hoặc IMEI của thiết bị."
+                  example: "string"
+                userAgent:
+                  type: string
+                  description: "Thông tin về trình duyệt hoặc ứng dụng gửi yêu cầu."
+                ipAddress:
+                  type: string
+                  description: "Địa chỉ IP của thiết bị gửi yêu cầu."
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  clientRequestId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  orderId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  orderStatus:
+                    type: string
+                    description: ""
+                    example: "string"
+                  clientModifyId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  clientCancelId:
+                    type: string
+                    description: ""
+                    example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+    put:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-order-modify"
+      description: "Sửa lệnh hiện có."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "X-Signature"
+          in: header
+          required: true
+          description: "Chữ ký RSA + SHA256 để xác thực tính toàn vẹn của request. Input bao gồm SecretKey + JSON body."
+          schema:
+            type: string
+          example: "sha256=abc123..."
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountNo
+                - deviceId
+              properties:
+                clientModifyId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh sửa lệnh do client tạo ra để đối chiếu phản hồi. Nếu có, nên đảm bảo tính duy nhất; nếu để trống, hệ thống tự sinh định danh và trả về trong response và streaming."
+                clientRequestId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh lệnh gốc do client tạo ra khi đặt lệnh. Khi để trống thì hệ thống sẽ không đối chiếu dựa trên định danh lệnh gốc mà sẽ dựa vào `orderId` để xác định lệnh cần sửa."
+                orderId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh lệnh gốc sinh ra bởi hệ thống SSI."
+                accountNo:
+                  type: string
+                  description: "Số tài khoản giao dịch."
+                  example: "string"
+                symbol:
+                  type:
+                    - string
+                    - "null"
+                  description: "Mã chứng khoán."
+                side:
+                  type:
+                    - string
+                    - "null"
+                  description: "Chiều mua hoặc bán của lệnh giao dịch. (B- Buy/Mua, S- Sell/Bán)"
+                orderType:
+                  type:
+                    - string
+                    - "null"
+                  description: "Loại lệnh giao dịch. (LO - Limit Order/Lệnh giới hạn, ATO - At The Open/Lệnh mở cửa, ATC - At The Close/Lệnh đóng cửa, MP - Market Price/Giá thị trường)"
+                price:
+                  type:
+                    - string
+                    - "null"
+                  description: "Giá thay đổi của lệnh. Trường này có thể không bắt buộc tùy theo loại lệnh và quy định sửa lệnh của sàn giao dịch. Ví dụ, đối với lệnh MP (Market Price), giá có thể không cần cung cấp khi sửa lệnh."
+                quantity:
+                  type:
+                    - number
+                    - "null"
+                  description: "Khối lượng thay đổi của lệnh. Trường này có thể không bắt buộc tùy theo quy định sửa lệnh của sàn giao dịch. Ví dụ, một số sàn có thể chỉ cho phép sửa giá mà không cho phép sửa khối lượng, hoặc ngược lại."
+                deviceId:
+                  type: string
+                  description: "Định danh thiết bị thực hiện gửi yêu cầu sửa lệnh. Thông thường dùng MAC address hoặc IMEI của thiết bị."
+                  example: "string"
+                userAgent:
+                  type:
+                    - string
+                    - "null"
+                  description: "Thông tin về trình duyệt hoặc ứng dụng gửi yêu cầu."
+                ipAddress:
+                  type:
+                    - string
+                    - "null"
+                  description: "Địa chỉ IP của thiết bị gửi yêu cầu."
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  clientRequestId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  orderId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  orderStatus:
+                    type: string
+                    description: ""
+                    example: "string"
+                  clientModifyId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  clientCancelId:
+                    type: string
+                    description: ""
+                    example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+    delete:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-order-cancel"
+      description: "Hủy lệnh hiện có."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "X-Signature"
+          in: header
+          required: true
+          description: "Chữ ký RSA + SHA256 để xác thực tính toàn vẹn của request. Input bao gồm SecretKey + JSON body."
+          schema:
+            type: string
+          example: "sha256=abc123..."
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountNo
+                - deviceId
+              properties:
+                clientCancelId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh hủy lệnh do client tạo ra để đối chiếu phản hồi. Nếu có, nên đảm bảo tính duy nhất; nếu để trống, hệ thống tự sinh định danh và trả về trong response và streaming."
+                clientRequestId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh lệnh gốc do client tạo ra khi đặt lệnh. Khi để trống thì hệ thống sẽ không đối chiếu dựa trên định danh lệnh gốc mà sẽ dựa vào `orderId` để xác định lệnh cần hủy."
+                orderId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh lệnh gốc do hệ thống SSI tạo. Dùng `clientRequestId` để xác định lệnh nếu có; nếu không, dùng `orderId`. Yêu cầu bị từ chối nếu thiếu cả hai."
+                accountNo:
+                  type: string
+                  description: "Số tài khoản giao dịch."
+                  example: "string"
+                deviceId:
+                  type: string
+                  description: "Định danh thiết bị thực hiện gửi yêu cầu hủy lệnh. Thông thường dùng MAC address hoặc IMEI của thiết bị."
+                  example: "string"
+                userAgent:
+                  type:
+                    - string
+                    - "null"
+                  description: "Thông tin về trình duyệt hoặc ứng dụng gửi yêu cầu hủy lệnh."
+                ipAddress:
+                  type:
+                    - string
+                    - "null"
+                  description: "Địa chỉ IP của thiết bị gửi yêu cầu hủy lệnh."
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  clientRequestId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  orderId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  orderStatus:
+                    type: string
+                    description: ""
+                    example: "string"
+                  clientModifyId:
+                    type: string
+                    description: ""
+                    example: "string"
+                  clientCancelId:
+                    type: string
+                    description: ""
+                    example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/position:
+    get:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-position"
+      description: "Lấy thông tin vị thế cho tài khoản."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "clientId"
+          in: query
+          required: false
+          description: "Tài khoản 6 số định danh khách hàng tại SSI. Nếu số tài khoản là 003C123888 thì clientId = 123888"
+          schema:
+            type: string
+          example: ""
+        - name: "accountNo"
+          in: query
+          required: true
+          description: "Tài khoản giao dịch cần lấy thông tin vị thế, các tài khoản đuôi 1, 6, 8 tương ứng (CASH, MARGIN, DERIVATIVE) sẽ có thông tin vị thế khác nhau."
+          schema:
+            type: string
+          example: "string"
+        - name: "querySummary"
+          in: query
+          required: false
+          description: "Nếu true, trả về tóm tắt vị thế phái sinh. Nếu false, trả về chi tiết từng vị thế. Chỉ áp dụng cho tài khoản phái sinh. Mặc định là true."
+          schema:
+            type: boolean
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  data:
+                    type: object
+                    description: ""
+                    properties:
+                      equity:
+                        type: array
+                        description: ""
+                        items:
+                          type: object
+                          properties:
+                            accountNo:
+                              type: string
+                              description: ""
+                            symbol:
+                              type: string
+                              description: ""
+                            quantity:
+                              type: string
+                              description: ""
+                            blockQuantity:
+                              type: string
+                              description: ""
+                            dividendQuantity:
+                              type: string
+                              description: ""
+                            buyingQuantity:
+                              type: string
+                              description: ""
+                            boughtQuantity:
+                              type: string
+                              description: ""
+                            sellingQuantity:
+                              type: string
+                              description: ""
+                            soldQuantity:
+                              type: string
+                              description: ""
+                            t1SellQuantity:
+                              type: string
+                              description: ""
+                            t2SellQuantity:
+                              type: string
+                              description: ""
+                            costPrice:
+                              type: string
+                              description: ""
+                            mortgageQuantity:
+                              type: string
+                              description: ""
+                            sellableQuantity:
+                              type: string
+                              description: ""
+                            restrictedQuantity:
+                              type: string
+                              description: ""
+                      derivative:
+                        type: object
+                        description: ""
+                        properties:
+                          accountNo:
+                            type: string
+                            description: ""
+                          derOpenPositions:
+                            type: array
+                            description: ""
+                            items:
+                              type: object
+                              properties:
+                                symbol:
+                                  type: string
+                                  description: ""
+                                long:
+                                  type: string
+                                  description: ""
+                                short:
+                                  type: string
+                                  description: ""
+                                net:
+                                  type: string
+                                  description: ""
+                                bidAvgPrice:
+                                  type: string
+                                  description: ""
+                                askAvgPrice:
+                                  type: string
+                                  description: ""
+                                tradePrice:
+                                  type: string
+                                  description: ""
+                                tradingPL:
+                                  type: string
+                                  description: ""
+                                floatingPL:
+                                  type: string
+                                  description: ""
+                          derClosePositions:
+                            type: array
+                            description: ""
+                            items:
+                              type: object
+                              properties:
+                                symbol:
+                                  type: string
+                                  description: ""
+                                long:
+                                  type: string
+                                  description: ""
+                                short:
+                                  type: string
+                                  description: ""
+                                net:
+                                  type: string
+                                  description: ""
+                                bidAvgPrice:
+                                  type: string
+                                  description: ""
+                                askAvgPrice:
+                                  type: string
+                                  description: ""
+                                tradePrice:
+                                  type: string
+                                  description: ""
+                                tradingPL:
+                                  type: string
+                                  description: ""
+                                floatingPL:
+                                  type: string
+                                  description: ""
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/maxBuySell:
+    get:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-maxbuysell"
+      description: "Lấy khối lượng mua/bán tối đa theo tài khoản, mã và giá."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "accountNo"
+          in: query
+          required: true
+          description: "Tài khoản giao dịch cần kiểm tra khối lượng mua/bán tối đa."
+          schema:
+            type: string
+          example: "string"
+        - name: "symbol"
+          in: query
+          required: true
+          description: "Mã chứng khoán cần kiểm tra khối lượng mua/bán tối đa."
+          schema:
+            type: string
+          example: "string"
+        - name: "price"
+          in: query
+          required: true
+          description: "Giá cần kiểm tra khối lượng mua/bán tối đa."
+          schema:
+            type: string
+          example: "string"
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  data:
+                    type: object
+                    description: ""
+                    properties:
+                      accountNo:
+                        type: string
+                        description: ""
+                      maxBuyQty:
+                        type: number
+                        description: ""
+                      marginRatio:
+                        type: string
+                        description: ""
+                      maxSellQty:
+                        type: number
+                        description: ""
+                      purchasingPower:
+                        type: number
+                        description: ""
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/accountBalance:
+    get:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-accountBalance"
+      description: "Lấy số dư tài khoản giao dịch."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "clientId"
+          in: query
+          required: false
+          description: "Tài khoản 6 số định danh khách hàng tại SSI. Nếu số tài khoản là 003C123888 thì clientId = 123888"
+          schema:
+            type: string
+          example: ""
+        - name: "accountNo"
+          in: query
+          required: true
+          description: "Tài khoản giao dịch cần lấy số dư. Bắt buộc truyền thông tin tiểu khoản."
+          schema:
+            type: string
+          example: "string"
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  equity:
+                    type: object
+                    description: ""
+                    properties:
+                      accountNo:
+                        type: string
+                        description: ""
+                      accountBalance:
+                        type: string
+                        description: ""
+                      totalDebt:
+                        type: string
+                        description: ""
+                      interestLoan:
+                        type: string
+                        description: ""
+                      overdueFeeLoan:
+                        type: string
+                        description: ""
+                      withdrawable:
+                        type: string
+                        description: ""
+                      onHoldCash:
+                        type: string
+                        description: ""
+                      sellUnmatched:
+                        type: string
+                        description: ""
+                      sellT0:
+                        type: string
+                        description: ""
+                      sellT1:
+                        type: string
+                        description: ""
+                      sellT2:
+                        type: string
+                        description: ""
+                      buyUnmatched:
+                        type: string
+                        description: ""
+                      buyT0:
+                        type: string
+                        description: ""
+                      buyT1:
+                        type: string
+                        description: ""
+                      buyT2:
+                        type: string
+                        description: ""
+                      advancedCashT0:
+                        type: string
+                        description: ""
+                      advancedCashT1:
+                        type: string
+                        description: ""
+                      holdSubscription:
+                        type: string
+                        description: ""
+                      dividend:
+                        type: string
+                        description: ""
+                  derivative:
+                    type: object
+                    description: ""
+                    properties:
+                      accountNo:
+                        type: string
+                        description: ""
+                      accountBalance:
+                        type: string
+                        description: ""
+                      fee:
+                        type: string
+                        description: ""
+                      commission:
+                        type: string
+                        description: ""
+                      interest:
+                        type: string
+                        description: ""
+                      extInterest:
+                        type: string
+                        description: ""
+                      loan:
+                        type: string
+                        description: ""
+                      deliveryAmount:
+                        type: string
+                        description: ""
+                      floatingPL:
+                        type: string
+                        description: ""
+                      tradingPL:
+                        type: string
+                        description: ""
+                      totalPL:
+                        type: string
+                        description: ""
+                      withdrawable:
+                        type: string
+                        description: ""
+                      cashSSI:
+                        type: string
+                        description: ""
+                      validNonCashSSI:
+                        type: string
+                        description: ""
+                      withdrawableSSI:
+                        type: string
+                        description: ""
+                      cashVSDC:
+                        type: string
+                        description: ""
+                      validNonCashVSDC:
+                        type: string
+                        description: ""
+                      withdrawableVSDC:
+                        type: string
+                        description: ""
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/ppmmrAccount:
+    get:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-ppmmrAccount"
+      description: "Lấy thông tin PP/MMR của tài khoản."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "clientId"
+          in: query
+          required: false
+          description: "Tài khoản 6 số định danh khách hàng tại SSI. Nếu số tài khoản là 003C123888 thì clientId = 123888"
+          schema:
+            type: string
+          example: ""
+        - name: "accountNo"
+          in: query
+          required: true
+          description: "Tài khoản giao dịch cần lấy thông tin PP/MMR."
+          schema:
+            type: string
+          example: "string"
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  equity:
+                    type: object
+                    description: ""
+                    properties:
+                      accountNo:
+                        type: string
+                        description: ""
+                      dividend:
+                        type: string
+                        description: ""
+                      loanValue:
+                        type: string
+                        description: ""
+                      totalDebt:
+                        type: string
+                        description: ""
+                      debt:
+                        type: string
+                        description: ""
+                      liability:
+                        type: string
+                        description: ""
+                      liabilitySSI:
+                        type: string
+                        description: ""
+                      netLiability:
+                        type: string
+                        description: ""
+                      fees:
+                        type: string
+                        description: ""
+                      interestSSI:
+                        type: string
+                        description: ""
+                      interestSPV:
+                        type: string
+                        description: ""
+                      withdrawable:
+                        type: string
+                        description: ""
+                      ee:
+                        type: string
+                        description: ""
+                      ee50:
+                        type: string
+                        description: ""
+                      ee60:
+                        type: string
+                        description: ""
+                      ee70:
+                        type: string
+                        description: ""
+                      ee80:
+                        type: string
+                        description: ""
+                      ee90:
+                        type: string
+                        description: ""
+                      action:
+                        type: string
+                        description: ""
+                      actionSSI:
+                        type: string
+                        description: ""
+                      equity:
+                        type: string
+                        description: ""
+                      equitySSI:
+                        type: string
+                        description: ""
+                      eeCash:
+                        type: string
+                        description: ""
+                      holdSubscription:
+                        type: string
+                        description: ""
+                      bankBalance:
+                        type: string
+                        description: ""
+                      onHoldCash:
+                        type: string
+                        description: ""
+                      doverdue:
+                        type: string
+                        description: ""
+                      doverdue_ssi:
+                        type: string
+                        description: ""
+                      accountBalance:
+                        type: string
+                        description: ""
+                      d:
+                        type: string
+                        description: ""
+                      dspv:
+                        type: string
+                        description: ""
+                      dssi:
+                        type: string
+                        description: ""
+                      cia:
+                        type: string
+                        description: ""
+                      collateralAsset:
+                        type: string
+                        description: ""
+                      collateralAssetSSI:
+                        type: string
+                        description: ""
+                      totalAssets:
+                        type: string
+                        description: ""
+                      totalEquity:
+                        type: string
+                        description: ""
+                      totalEquitySSI:
+                        type: string
+                        description: ""
+                      callLMV:
+                        type: string
+                        description: ""
+                      forceLMV:
+                        type: string
+                        description: ""
+                      callLMVSSI:
+                        type: string
+                        description: ""
+                      forceLMVSSI:
+                        type: string
+                        description: ""
+                      lmv:
+                        type: string
+                        description: ""
+                      lmvMargin:
+                        type: string
+                        description: ""
+                      lmvMarginSSI:
+                        type: string
+                        description: ""
+                      lmvNonMarginable:
+                        type: string
+                        description: ""
+                      lmvNonMarginableSSI:
+                        type: string
+                        description: ""
+                      preLoan:
+                        type: string
+                        description: ""
+                      marginRatio:
+                        type: string
+                        description: ""
+                      marginRatioSSI:
+                        type: string
+                        description: ""
+                      purchasingPower:
+                        type: string
+                        description: ""
+                      eeOrigin:
+                        type: string
+                        description: ""
+                      buyUnmatched:
+                        type: string
+                        description: ""
+                      sellUnmatched:
+                        type: string
+                        description: ""
+                      buyT0:
+                        type: string
+                        description: ""
+                      sellT0:
+                        type: string
+                        description: ""
+                      sellT1:
+                        type: string
+                        description: ""
+                      sellT2:
+                        type: string
+                        description: ""
+                      buyT1:
+                        type: string
+                        description: ""
+                      buyT2:
+                        type: string
+                        description: ""
+                      creditLimit:
+                        type: string
+                        description: ""
+                      marginCallLMVSold:
+                        type: string
+                        description: ""
+                      marginCallLMVSoldSSI:
+                        type: string
+                        description: ""
+                      marginCall:
+                        type: string
+                        description: ""
+                      marginCallSSI:
+                        type: string
+                        description: ""
+                      collateralA:
+                        type: string
+                        description: ""
+                      collateralNon:
+                        type: string
+                        description: ""
+                      collateralASSI:
+                        type: string
+                        description: ""
+                      collateralNonSSI:
+                        type: string
+                        description: ""
+                      callMargin:
+                        type: string
+                        description: ""
+                      callForcesell:
+                        type: string
+                        description: ""
+                      callMarginSSI:
+                        type: string
+                        description: ""
+                      callForcesellSSI:
+                        type: string
+                        description: ""
+                      ar:
+                        type: string
+                        description: ""
+                  derivative:
+                    type: object
+                    description: ""
+                    properties:
+                      accountNo:
+                        type: string
+                        description: ""
+                      accountBalance:
+                        type: string
+                        description: ""
+                      fee:
+                        type: string
+                        description: ""
+                      commission:
+                        type: string
+                        description: ""
+                      interest:
+                        type: string
+                        description: ""
+                      loan:
+                        type: string
+                        description: ""
+                      deliveryAmount:
+                        type: string
+                        description: ""
+                      floatingPL:
+                        type: string
+                        description: ""
+                      tradingPL:
+                        type: string
+                        description: ""
+                      totalPL:
+                        type: string
+                        description: ""
+                      marginable:
+                        type: string
+                        description: ""
+                      depositable:
+                        type: string
+                        description: ""
+                      rcCall:
+                        type: string
+                        description: ""
+                      withdrawable:
+                        type: string
+                        description: ""
+                      nonCashDrawableRCCall:
+                        type: string
+                        description: ""
+                      cashSSI:
+                        type: string
+                        description: ""
+                      validNonCashSSI:
+                        type: string
+                        description: ""
+                      totalAssetSSI:
+                        type: string
+                        description: ""
+                      withdrawableSSI:
+                        type: string
+                        description: ""
+                      eeSSI:
+                        type: string
+                        description: ""
+                      cashVSDC:
+                        type: string
+                        description: ""
+                      validNonCashVSDC:
+                        type: string
+                        description: ""
+                      totalAssetVSDC:
+                        type: string
+                        description: ""
+                      withdrawableVSDC:
+                        type: string
+                        description: ""
+                      eeVSDC:
+                        type: string
+                        description: ""
+                      spreadMarginSSI:
+                        type: string
+                        description: ""
+                      deliveryMarginSSI:
+                        type: string
+                        description: ""
+                      marginReqSSI:
+                        type: string
+                        description: ""
+                      accountRatioSSI:
+                        type: string
+                        description: ""
+                      usedLimitWarningLevel1SSI:
+                        type: string
+                        description: ""
+                      usedLimitWarningLevel2SSI:
+                        type: string
+                        description: ""
+                      usedLimitWarningLevel3SSI:
+                        type: string
+                        description: ""
+                      marginCallSSI:
+                        type: string
+                        description: ""
+                      spreadMarginVSDC:
+                        type: string
+                        description: ""
+                      deliveryMarginVSDC:
+                        type: string
+                        description: ""
+                      marginReqVSDC:
+                        type: string
+                        description: ""
+                      accountRatioVSDC:
+                        type: string
+                        description: ""
+                      usedLimitWarningLevel1VSDC:
+                        type: string
+                        description: ""
+                      usedLimitWarningLevel2VSDC:
+                        type: string
+                        description: ""
+                      usedLimitWarningLevel3VSDC:
+                        type: string
+                        description: ""
+                      marginCallVSDC:
+                        type: string
+                        description: ""
+                      totalEquity:
+                        type: string
+                        description: ""
+                      extInterest:
+                        type: string
+                        description: ""
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/orderBook:
+    get:
+      tags:
+        - Trading
+      operationId: ""
+      summary: "trade-orderBook"
+      description: "Lấy lịch sử sổ lệnh theo tài khoản và bộ lọc."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "accountNo"
+          in: query
+          required: true
+          description: "Tài khoản giao dịch cần lấy lịch sử sổ lệnh."
+          schema:
+            type: string
+          example: "string"
+        - name: "from"
+          in: query
+          required: true
+          description: "Thời gian bắt đầu để lọc lịch sử sổ lệnh, định dạng ISO 8601 (ví dụ 2024-01-01T00:00:00Z)."
+          schema:
+            type: string
+          example: "string"
+        - name: "to"
+          in: query
+          required: true
+          description: "Thời gian kết thúc để lọc lịch sử sổ lệnh, định dạng ISO 8601 (ví dụ 2024-01-01T00:00:00Z)."
+          schema:
+            type: string
+          example: "string"
+        - name: "symbol"
+          in: query
+          required: false
+          description: "Mã chứng khoán cần lọc lịch sử sổ lệnh."
+          schema:
+            type: string
+          example: ""
+        - name: "orderStatus"
+          in: query
+          required: false
+          description: "Trạng thái lệnh cần lọc. Tham khảo danh sách trạng thái tại phụ lục Trạng thái lệnh & luồng trạng thái."
+          schema:
+            type: string
+          example: ""
+        - name: "pageSize"
+          in: query
+          required: false
+          description: "Số lượng bản ghi trên mỗi trang; mặc định là 20 nếu không cung cấp."
+          schema:
+            type: integer
+          example: ""
+        - name: "pageIndex"
+          in: query
+          required: false
+          description: "Chỉ số trang, bắt đầu từ 1; mặc định là 1 nếu không cung cấp."
+          schema:
+            type: integer
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  data:
+                    type: object
+                    description: ""
+                    properties:
+                      accountNo:
+                        type: string
+                        description: ""
+                      totalRecord:
+                        type: integer
+                        description: ""
+                      orderList:
+                        type: array
+                        description: ""
+                        items:
+                          type: object
+                          properties:
+                            clientRequestId:
+                              type: string
+                              description: ""
+                            orderId:
+                              type: string
+                              description: ""
+                            symbol:
+                              type: string
+                              description: ""
+                            side:
+                              type: string
+                              description: ""
+                              example: "B"
+                            orderType:
+                              type: string
+                              description: ""
+                              example: "LO"
+                            quantity:
+                              type: string
+                              description: ""
+                            price:
+                              type: string
+                              description: ""
+                            filledQty:
+                              type: string
+                              description: ""
+                            cancelQty:
+                              type: string
+                              description: ""
+                            avgPrice:
+                              type: string
+                              description: ""
+                            inputTime:
+                              type: string
+                              description: ""
+                            modifiedTime:
+                              type: string
+                              description: ""
+                            orderStatus:
+                              type: string
+                              description: ""
+                              example: "PD"
+                            message:
+                              type: string
+                              description: ""
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/fco/order:
+    post:
+      tags:
+        - Lệnh điều kiện
+      operationId: ""
+      summary: "fco-order-place"
+      description: "Đặt lệnh điều kiện mới. Hỗ trợ các loại lệnh điều kiện bao gồm stop, stop_limit, gtd, bullbear, oco, trailing_stop, trailing_stop_limit.\n\n📄 Xem thêm: [Tham khảo đặt lệnh điều kiện](https://developers.ssi.com.vn/docs/api-reference/appendix/fco-reference)"
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "X-Signature"
+          in: header
+          required: true
+          description: "Chữ ký RSA + SHA256 để xác thực tính toàn vẹn của request. Input bao gồm SecretKey + JSON body."
+          schema:
+            type: string
+          example: "sha256=abc123..."
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountNo
+                - deviceId
+                - symbol
+                - side
+                - type
+                - price
+                - quantity
+              properties:
+                accountNo:
+                  type: string
+                  description: "Tài khoản đặt lệnh (tài khoản cơ sở hoặc phái sinh)."
+                  example: "string"
+                deviceId:
+                  type: string
+                  description: "Định danh thiết bị thực hiện gửi yêu cầu. Thông thường dùng MAC address hoặc IMEI của thiết bị."
+                  example: "string"
+                userAgent:
+                  type:
+                    - string
+                    - "null"
+                  description: "Thông tin về trình duyệt hoặc ứng dụng gửi yêu cầu."
+                clientRequestId:
+                  type:
+                    - string
+                    - "null"
+                  description: "Định danh lệnh do client tạo ra để đối chiếu phản hồi. Nếu có, nên đảm bảo tính duy nhất; nếu để trống, hệ thống tự sinh định danh và trả về trong response và streaming."
+                ipAddress:
+                  type: string
+                  description: "Địa chỉ IP của thiết bị gửi yêu cầu."
+                from:
+                  type:
+                    - string
+                    - "null"
+                  description: "Ngày bắt đầu hiệu lực của lệnh điều kiện, định dạng `YYYY/MM/DD hh:mm:ss`. Mặc định là thời điểm tạo lệnh."
+                to:
+                  type:
+                    - string
+                    - "null"
+                  description: "Ngày kết thúc hiệu lực của lệnh điều kiện, định dạng `YYYY/MM/DD hh:mm:ss`. Mặc định là 24h kể từ thời điểm tạo, tối đa 31 ngày kể từ ngày bắt đầu."
+                code:
+                  type:
+                    - string
+                    - "null"
+                  description: "Mã xác thực OTP hoặc mã PIN dùng để xác thực giao dịch (cần điền nếu token chưa được xác thực kèm với OTP)"
+                symbol:
+                  type:
+                    - string
+                    - "null"
+                  description: "Mã chứng khoán hoặc mã hợp đồng phái sinh cần đặt lệnh điều kiện."
+                  example: "string"
+                side:
+                  type:
+                    - string
+                    - "null"
+                  description: "Chiều mua hoặc bán của lệnh. B (Buy/Mua) hoặc S (Sell/Bán)."
+                  example: "B"
+                type:
+                  type:
+                    - string
+                    - "null"
+                  description: "Loại lệnh điều kiện."
+                  example: "stop_limit"
+                price:
+                  type:
+                    - string
+                    - "null"
+                  description: "Giá đặt lệnh. Hỗ trợ giá số hoặc loại lệnh đặc biệt (MP, MOK, MTL)."
+                  example: "string"
+                quantity:
+                  type: integer
+                  description: "Khối lượng muốn đặt lệnh."
+                  example: 0
+                priceSlip:
+                  type: number
+                  description: "Khoảng trượt giá (price slippage) cho phép khi thực hiện lệnh."
+                stopPrice:
+                  type: number
+                  description: "Giá dừng lỗ. Khi giá thị trường đạt đến mức này, lệnh sẽ được kích hoạt."
+                activePrice:
+                  type: number
+                  description: "Giá kích hoạt ban đầu của lệnh điều kiện."
+                trailingAmount:
+                  type: number
+                  description: "Khoảng giá trailing. Dùng cho loại lệnh trailing_stop và trailing_stop_limit."
+                tpActivePrice:
+                  type: number
+                  description: "Giá kích hoạt lệnh chốt lời (Take Profit). Khi giá thị trường đạt đến mức này, lệnh chốt lời sẽ được kích hoạt."
+                slActivePrice:
+                  type: number
+                  description: "Giá kích hoạt lệnh dừng lỗ (Stop Loss). Khi giá thị trường đạt đến mức này, lệnh dừng lỗ sẽ được kích hoạt."
+                tpPrice:
+                  type:
+                    - string
+                    - "null"
+                  description: "Giá chốt lời. Hỗ trợ giá số hoặc loại lệnh đặc biệt (MP, MOK, MTL)."
+                slPrice:
+                  type:
+                    - string
+                    - "null"
+                  description: "Giá dừng lỗ. Hỗ trợ giá số hoặc loại lệnh đặc biệt (MP, MOK, MTL)."
+                tpSlip:
+                  type: number
+                  description: "Biên trượt giá chốt lời."
+                slSlip:
+                  type: number
+                  description: "Biên trượt giá dừng lỗ."
+                operator:
+                  type:
+                    - string
+                    - "null"
+                  description: "Toán tử so sánh giá để kích hoạt lệnh điều kiện."
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  fcoId:
+                    type: string
+                    description: ""
+                    example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+    delete:
+      tags:
+        - Lệnh điều kiện
+      operationId: ""
+      summary: "fco-order-cancel"
+      description: "Hủy lệnh điều kiện đang hoạt động."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "X-Signature"
+          in: header
+          required: true
+          description: "Chữ ký RSA + SHA256 để xác thực tính toàn vẹn của request. Input bao gồm SecretKey + JSON body."
+          schema:
+            type: string
+          example: "sha256=abc123..."
+      requestBody:
+        description: ""
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcoId
+              properties:
+                fcoId:
+                  type:
+                    - string
+                    - "null"
+                  description: "ID của lệnh điều kiện cần hủy."
+                  example: "string"
+                code:
+                  type:
+                    - string
+                    - "null"
+                  description: "Mã xác thực OTP hoặc mã PIN dùng để xác thực giao dịch."
+                deviceId:
+                  type: string
+                  description: "Định danh thiết bị thực hiện gửi yêu cầu. Thông thường dùng MAC address hoặc IMEI của thiết bị."
+                userAgent:
+                  type:
+                    - string
+                    - "null"
+                  description: "Thông tin về trình duyệt hoặc ứng dụng gửi yêu cầu."
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  fcoId:
+                    type: string
+                    description: ""
+                    example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/fco/list:
+    get:
+      tags:
+        - Lệnh điều kiện
+      operationId: ""
+      summary: "fco-list"
+      description: "Lấy danh sách các lệnh điều kiện đã tạo theo bộ lọc."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "fcoId"
+          in: query
+          required: false
+          description: "ID của lệnh điều kiện cần truy vấn."
+          schema:
+            type: string
+          example: ""
+        - name: "accountNo"
+          in: query
+          required: true
+          description: "Tài khoản đặt lệnh."
+          schema:
+            type: string
+          example: "string"
+        - name: "type"
+          in: query
+          required: false
+          description: "Loại lệnh điều kiện cần lọc."
+          schema:
+            type: string
+          example: ""
+        - name: "processStatus"
+          in: query
+          required: false
+          description: "Trạng thái lệnh điều kiện cần lọc. Hỗ trợ lọc nhiều trạng thái cùng lúc, phân cách bằng dấu phẩy."
+          schema:
+            type: string
+          example: ""
+        - name: "symbol"
+          in: query
+          required: false
+          description: "Mã chứng khoán hoặc mã hợp đồng phái sinh cần lọc."
+          schema:
+            type: string
+          example: ""
+        - name: "side"
+          in: query
+          required: false
+          description: "Chiều mua hoặc bán của lệnh."
+          schema:
+            type: string
+          example: ""
+        - name: "from"
+          in: query
+          required: false
+          description: "Ngày bắt đầu lọc, định dạng `YYYY/MM/DD`."
+          schema:
+            type: string
+          example: ""
+        - name: "to"
+          in: query
+          required: false
+          description: "Ngày kết thúc lọc, định dạng `YYYY/MM/DD`."
+          schema:
+            type: string
+          example: ""
+        - name: "pageIndex"
+          in: query
+          required: false
+          description: "Chỉ số trang khi phân trang kết quả, bắt đầu từ 1. Mặc định là 1."
+          schema:
+            type: integer
+          example: ""
+        - name: "pageSize"
+          in: query
+          required: false
+          description: "Số lượng bản ghi trên mỗi trang. Mặc định là 10."
+          schema:
+            type: integer
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  pageIndex:
+                    type: string
+                    description: ""
+                    example: "string"
+                  pageSize:
+                    type: string
+                    description: ""
+                    example: "string"
+                  itemsCount:
+                    type: string
+                    description: ""
+                    example: "string"
+                  pagesCount:
+                    type: string
+                    description: ""
+                    example: "string"
+                  fcoList:
+                    type: array
+                    description: ""
+                    items:
+                      type: object
+                      required: []
+                      properties:
+                        fcoId:
+                          type: string
+                          description: ""
+                          example: "string"
+                        username:
+                          type: string
+                          description: ""
+                          example: "string"
+                        accountNo:
+                          type: string
+                          description: ""
+                          example: "string"
+                        quantity:
+                          type: number
+                          description: ""
+                          example: 0.1
+                        price:
+                          type: string
+                          description: ""
+                          example: "string"
+                        priceSlip:
+                          type: string
+                          description: ""
+                          example: "string"
+                        symbol:
+                          type: string
+                          description: ""
+                          example: "string"
+                        type:
+                          type: string
+                          description: ""
+                          example: "stop_limit"
+                        orderType:
+                          type: string
+                          description: ""
+                          example: "string"
+                        from:
+                          type: string
+                          description: ""
+                          example: "string"
+                        to:
+                          type: string
+                          description: ""
+                          example: "string"
+                        matchedQuantity:
+                          type: number
+                          description: ""
+                          example: 0.1
+                        isPlaceOrder:
+                          type: boolean
+                          description: ""
+                          example: true
+                        status:
+                          type: string
+                          description: ""
+                          example: "INIT"
+                        detail:
+                          type: string
+                          description: ""
+                          example: "string"
+                        params:
+                          type: object
+                          description: ""
+                          required: []
+                          properties:
+                            stopPrice:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            side:
+                              type: string
+                              description: ""
+                              example: "string"
+                            activePrice:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            trailingAmount:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            tpActivePrice:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            slActivePrice:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            tpPrice:
+                              type: string
+                              description: ""
+                              example: "string"
+                            slPrice:
+                              type: string
+                              description: ""
+                              example: "string"
+                            tpSlip:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            slSlip:
+                              type: number
+                              description: ""
+                              example: 0.1
+                            operator:
+                              type: string
+                              description: ""
+                              example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/fco/orderbook:
+    get:
+      tags:
+        - Lệnh điều kiện
+      operationId: ""
+      summary: "fco-orderbook"
+      description: "Lấy danh sách các lệnh thực được phát sinh (trigger) bởi một lệnh điều kiện."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "fcoId"
+          in: query
+          required: true
+          description: "ID của lệnh điều kiện cần truy vấn sổ lệnh phát sinh."
+          schema:
+            type: string
+          example: "string"
+        - name: "pageIndex"
+          in: query
+          required: false
+          description: "Chỉ số trang khi phân trang kết quả, bắt đầu từ 1. Mặc định là 1."
+          schema:
+            type: integer
+          example: ""
+        - name: "pageSize"
+          in: query
+          required: false
+          description: "Số lượng bản ghi trên mỗi trang. Mặc định là 10."
+          schema:
+            type: integer
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  pageIndex:
+                    type: string
+                    description: ""
+                    example: "string"
+                  pageSize:
+                    type: string
+                    description: ""
+                    example: "string"
+                  itemsCount:
+                    type: string
+                    description: ""
+                    example: "string"
+                  pagesCount:
+                    type: string
+                    description: ""
+                    example: "string"
+                  data:
+                    type: array
+                    description: ""
+                    items:
+                      type: object
+                      required: []
+                      properties:
+                        fcoId:
+                          type: string
+                          description: ""
+                          example: "string"
+                        accountNo:
+                          type: string
+                          description: ""
+                          example: "string"
+                        quantity:
+                          type: number
+                          description: ""
+                          example: 0.1
+                        price:
+                          type: string
+                          description: ""
+                          example: "string"
+                        symbol:
+                          type: string
+                          description: ""
+                          example: "string"
+                        side:
+                          type: string
+                          description: ""
+                          example: "B"
+                        orderType:
+                          type: string
+                          description: ""
+                          example: "string"
+                        isMainOrder:
+                          type: boolean
+                          description: ""
+                          example: true
+                        isAttachedOrder:
+                          type: boolean
+                          description: ""
+                          example: true
+                        createdTime:
+                          type: string
+                          description: ""
+                          example: "string"
+                        updatedTime:
+                          type: string
+                          description: ""
+                          example: "string"
+                        uniqueId:
+                          type: string
+                          description: ""
+                          example: "string"
+                        orderId:
+                          type: string
+                          description: ""
+                          example: "string"
+                        matchedQuantity:
+                          type: number
+                          description: ""
+                          example: 0.1
+                        osQuantity:
+                          type: number
+                          description: ""
+                          example: 0.1
+                        avgPrice:
+                          type: number
+                          description: ""
+                          example: 0.1
+                        status:
+                          type: string
+                          description: ""
+                          example: "RQ"
+                        detail:
+                          type: string
+                          description: ""
+                          example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/trading/fco/statusHistory:
+    get:
+      tags:
+        - Lệnh điều kiện
+      operationId: ""
+      summary: "fco-statusHistory"
+      description: "Lấy lịch sử thay đổi trạng thái của một lệnh điều kiện."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body. Chủ yếu là application/json."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "fcoId"
+          in: query
+          required: true
+          description: "ID của lệnh điều kiện cần truy vấn lịch sử trạng thái."
+          schema:
+            type: string
+          example: "string"
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  data:
+                    type: array
+                    description: ""
+                    items:
+                      type: object
+                      required: []
+                      properties:
+                        state:
+                          type: string
+                          description: ""
+                          example: "string"
+                        time:
+                          type: string
+                          description: ""
+                          example: "string"
+                        code:
+                          type: integer
+                          description: ""
+                          example: 0
+                        detail:
+                          type: string
+                          description: ""
+                          example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/data/securitiesByBoard:
+    get:
+      tags:
+        - Market Data
+      operationId: ""
+      summary: "data-securitiesByBoard"
+      description: "Lấy danh sách chứng khoán theo điều kiện lọc. Khách chỉ được phép cung cấp một trong ba tham số symbol, board hoặc index để lọc danh sách chứng khoán."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body, sử dụng \"application/json\"."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "symbol"
+          in: query
+          required: false
+          description: "Mã chứng khoán cần truy vấn. Chỉ cung cấp một trong ba tham số symbol, board hoặc index."
+          schema:
+            type: string
+          example: ""
+        - name: "board"
+          in: query
+          required: false
+          description: "Mã sàn cần lấy danh sách chứng khoán. Giá trị có thể là `HOSE`, `HNX`, hoặc `UPCOM`."
+          schema:
+            type: string
+          example: ""
+        - name: "index"
+          in: query
+          required: false
+          description: "Mã chỉ số cần lấy danh sách chứng khoán."
+          schema:
+            type: string
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                description: ""
+                items:
+                  type: object
+                  required: []
+                  properties:
+                    symbol:
+                      type: string
+                      description: ""
+                      example: "string"
+                    symbolNameVi:
+                      type: string
+                      description: ""
+                      example: "string"
+                    symbolNameEn:
+                      type: string
+                      description: ""
+                      example: "string"
+                    board:
+                      type: string
+                      description: ""
+                      example: "HOSE"
+                    lotSize:
+                      type: string
+                      description: ""
+                      example: "string"
+                    maturityDate:
+                      type: string
+                      description: ""
+                      example: "string"
+                    firstTradingDate:
+                      type: string
+                      description: ""
+                      example: "string"
+                    lastTradingDate:
+                      type: string
+                      description: ""
+                      example: "string"
+                    cwUnderlyingSymbol:
+                      type: string
+                      description: ""
+                      example: "string"
+                    cwExercisePrice:
+                      type: string
+                      description: ""
+                      example: "string"
+                    cwExecutionRatio:
+                      type: string
+                      description: ""
+                      example: "string"
+                    listedShare:
+                      type: string
+                      description: ""
+                      example: "string"
+                    icbCode:
+                      type: string
+                      description: ""
+                      example: "string"
+                    icbName:
+                      type: string
+                      description: ""
+                      example: "string"
+                    iIndex:
+                      type: string
+                      description: ""
+                      example: "string"
+                    iNav:
+                      type: string
+                      description: ""
+                      example: "string"
+                    openInterest:
+                      type: string
+                      description: ""
+                      example: "string"
+                    settlementPrice:
+                      type: string
+                      description: ""
+                      example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/data/securitiesSummary:
+    get:
+      tags:
+        - Market Data
+      operationId: ""
+      summary: "data-securitiesSummary"
+      description: "Lấy thông tin tổng hợp giao dịch của một mã chứng khoán hoặc chỉ số theo từng ngày giao dịch. Chỉ truyền một trong hai tham số là Symbol hoặc Index."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body, sử dụng \"application/json\"."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "symbol"
+          in: query
+          required: false
+          description: "Mã chứng khoán. Chỉ truyền một trong hai tham số symbol hoặc index."
+          schema:
+            type: string
+          example: ""
+        - name: "index"
+          in: query
+          required: false
+          description: "Mã chỉ số cần lấy thông tin tổng hợp giao dịch (ví dụ VNINDEX, VN30, VN100 etc...)"
+          schema:
+            type: string
+          example: ""
+        - name: "from"
+          in: query
+          required: true
+          description: "Ngày bắt đầu theo định dạng `YYYY/MM/DD`."
+          schema:
+            type: string
+          example: "string"
+        - name: "to"
+          in: query
+          required: true
+          description: "Ngày kết thúc theo định dạng `YYYY/MM/DD`. Bắt buộc phải lớn hơn hoặc bằng `from`."
+          schema:
+            type: string
+          example: "string"
+        - name: "pageIndex"
+          in: query
+          required: false
+          description: "Chỉ số trang, bắt đầu từ 1; mặc định là 1 nếu không cung cấp."
+          schema:
+            type: integer
+          example: ""
+        - name: "pageSize"
+          in: query
+          required: false
+          description: "Số lượng bản ghi trên mỗi trang; mặc định là 10 nếu không cung cấp."
+          schema:
+            type: integer
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  pageSize:
+                    type: integer
+                    description: ""
+                    example: 0
+                  pageIndex:
+                    type: integer
+                    description: ""
+                    example: 0
+                  pagesCount:
+                    type: integer
+                    description: ""
+                    example: 0
+                  itemsCount:
+                    type: integer
+                    description: ""
+                    example: 0
+                  data:
+                    type: array
+                    description: ""
+                    items:
+                      type: object
+                      required: []
+                      properties:
+                        symbol:
+                          type: string
+                          description: ""
+                          example: "string"
+                        tradingDate:
+                          type: string
+                          description: ""
+                          example: "string"
+                        priceChange:
+                          type: string
+                          description: ""
+                          example: "string"
+                        priceChangePercentage:
+                          type: string
+                          description: ""
+                          example: "string"
+                        open:
+                          type: string
+                          description: ""
+                          example: "string"
+                        high:
+                          type: string
+                          description: ""
+                          example: "string"
+                        low:
+                          type: string
+                          description: ""
+                          example: "string"
+                        close:
+                          type: string
+                          description: ""
+                          example: "string"
+                        average:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalMatch:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalMatchValue:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalBuy:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalTradeBuy:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalSell:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalTradeSell:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalForeignBuy:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalForeignBuyValue:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalForeignSell:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalForeignSellValue:
+                          type: string
+                          description: ""
+                          example: "string"
+                        remainForeignRoom:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalForeignRoom:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalDeal:
+                          type: string
+                          description: ""
+                          example: "string"
+                        totalDealValue:
+                          type: string
+                          description: ""
+                          example: "string"
+                        openInterest:
+                          type: string
+                          description: ""
+                          example: "string"
+                        settlementPrice:
+                          type: string
+                          description: ""
+                          example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/data/indexList:
+    get:
+      tags:
+        - Market Data
+      operationId: ""
+      summary: "data-indexList"
+      description: "Lấy danh sách các chỉ số thị trường."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body, sử dụng \"application/json\"."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "board"
+          in: query
+          required: false
+          description: "Mã sàn cần lấy danh sách các chỉ số. Giá trị có thể là `HOSE`, `HNX`, hoặc `UPCOM`. Nếu không cung cấp thì hệ thống sẽ trả về danh sách các chỉ số của tất cả các sàn."
+          schema:
+            type: string
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                description: ""
+                items:
+                  type: object
+                  required: []
+                  properties:
+                    index:
+                      type: string
+                      description: ""
+                      example: "string"
+                    indexName:
+                      type: string
+                      description: ""
+                      example: "string"
+                    board:
+                      type: string
+                      description: ""
+                      example: "HOSE"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/data/indexSummary:
+    get:
+      tags:
+        - Market Data
+      operationId: ""
+      summary: "data-indexSummary"
+      description: "Lấy thông tin tổng hợp của một chỉ số theo ngày giao dịch."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body, sử dụng \"application/json\"."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "board"
+          in: query
+          required: false
+          description: "Mã sàn của chỉ số. Giá trị có thể là `HOSE`, `HNX`, hoặc `UPCOM`. Bắt buộc cung cấp chính xác một trong hai tham số `board` hoặc `index`."
+          schema:
+            type: string
+          example: ""
+        - name: "index"
+          in: query
+          required: false
+          description: "Mã chỉ số cần lấy thông tin tổng hợp (ví dụ VNINDEX, VN30, HNX30). Bắt buộc cung cấp chính xác một trong hai tham số `board` hoặc `index`."
+          schema:
+            type: string
+          example: ""
+        - name: "tradingDate"
+          in: query
+          required: false
+          description: "Ngày giao dịch theo định dạng `YYYY/MM/DD`."
+          schema:
+            type: string
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                description: ""
+                items:
+                  type: object
+                  required: []
+                  properties:
+                    tradingDate:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalTrade:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalTradeValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalMatch:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalMatchValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalDeal:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalDealValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    indexChange:
+                      type: string
+                      description: ""
+                      example: "string"
+                    indexChangePercentage:
+                      type: string
+                      description: ""
+                      example: "string"
+                    indexValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalAdvanceStock:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalCeilingStock:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalDeclineStock:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalFloorStock:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalNoChangeStock:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalPropBuy:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalPropBuyValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalPropSell:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalPropSellValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalBuyForeign:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalBuyForeignValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalSellForeign:
+                      type: string
+                      description: ""
+                      example: "string"
+                    totalSellForeignValue:
+                      type: string
+                      description: ""
+                      example: "string"
+                    netPurchasesForeignVolume:
+                      type: string
+                      description: ""
+                      example: "string"
+                    netPurchasesForeignValue:
+                      type: string
+                      description: ""
+                      example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/data/ohlc:
+    get:
+      tags:
+        - Market Data
+      operationId: ""
+      summary: "data-ohlc"
+      description: "Lấy dữ liệu nến OHLCV theo khoảng thời gian. Thời gian cung cấp 1 năm gần nhất cho dữ liệu intraday, dữ liệu daily cung cấp từ khi mã chứng khoán được giao dịch."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body, sử dụng \"application/json\"."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "symbol"
+          in: query
+          required: true
+          description: "Mã chứng khoán cần lấy dữ liệu OHLCV."
+          schema:
+            type: string
+          example: "string"
+        - name: "from"
+          in: query
+          required: true
+          description: "Mốc thời gian bắt đầu. Định dạng `YYYY/MM/DD` cho dữ liệu daily và `YYYY/MM/DD HH:mm:ss` cho dữ liệu intraday."
+          schema:
+            type: string
+          example: "string"
+        - name: "to"
+          in: query
+          required: true
+          description: "Mốc thời gian kết thúc. Định dạng `YYYY/MM/DD` cho dữ liệu daily và `YYYY/MM/DD HH:mm:ss` cho dữ liệu intraday."
+          schema:
+            type: string
+          example: "string"
+        - name: "timeFrame"
+          in: query
+          required: false
+          description: "Khung thời gian của dữ liệu OHLCV. Giá trị có thể là `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, hoặc `1d`. Nếu không cung cấp thì hệ thống sẽ sử dụng giá trị mặc định là `1d`."
+          schema:
+            type: string
+          example: ""
+        - name: "pageIndex"
+          in: query
+          required: false
+          description: "Chỉ số trang, bắt đầu từ 1; mặc định là 1 nếu không cung cấp."
+          schema:
+            type: integer
+          example: ""
+        - name: "pageSize"
+          in: query
+          required: false
+          description: "Số lượng bản ghi trên mỗi trang; mặc định là 10 nếu không cung cấp."
+          schema:
+            type: integer
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  pageSize:
+                    type: integer
+                    description: ""
+                    example: 0
+                  pageIndex:
+                    type: integer
+                    description: ""
+                    example: 0
+                  data:
+                    type: array
+                    description: ""
+                    items:
+                      type: object
+                      required: []
+                      properties:
+                        symbol:
+                          type: string
+                          description: ""
+                          example: "string"
+                        tradingDate:
+                          type: string
+                          description: ""
+                          example: "string"
+                        open:
+                          type: string
+                          description: ""
+                          example: "string"
+                        high:
+                          type: string
+                          description: ""
+                          example: "string"
+                        low:
+                          type: string
+                          description: ""
+                          example: "string"
+                        close:
+                          type: string
+                          description: ""
+                          example: "string"
+                        volume:
+                          type: string
+                          description: ""
+                          example: "string"
+                        value:
+                          type: string
+                          description: ""
+                          example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+  /api/v3/data/masterdata:
+    get:
+      tags:
+        - Market Data
+      operationId: ""
+      summary: "data-masterData"
+      description: "Truy vấn thông tin giá trần, giá sàn, giá tham chiếu của chứng khoán theo ngày giao dịch."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "Content-Type"
+          in: header
+          required: true
+          description: "Định dạng nội dung request body, sử dụng \"application/json\"."
+          schema:
+            type: string
+          example: ""
+        - name: "User-Agent"
+          in: header
+          required: false
+          description: "Thông tin client gửi request."
+          schema:
+            type: string
+          example: ""
+        - name: "Accept-Language"
+          in: header
+          required: false
+          description: "Ngôn ngữ phản hồi mong muốn. Nếu không có header này, hệ thống sẽ mặc định là en"
+          schema:
+            type: string
+          example: ""
+        - name: "from"
+          in: query
+          required: false
+          description: "Ngày bắt đầu theo định dạng `YYYY/MM/DD`. Không truyền thì trả dữ liệu ngày mới nhất."
+          schema:
+            type: string
+          example: ""
+        - name: "to"
+          in: query
+          required: false
+          description: "Ngày kết thúc theo định dạng `YYYY/MM/DD`. Không truyền thì trả dữ liệu ngày mới nhất."
+          schema:
+            type: string
+          example: ""
+        - name: "pageIndex"
+          in: query
+          required: false
+          description: "Chỉ số trang khi phân trang kết quả, bắt đầu từ 1. Nếu không cung cấp thì hệ thống sẽ sử dụng giá trị mặc định là 1."
+          schema:
+            type: integer
+          example: ""
+        - name: "pageSize"
+          in: query
+          required: false
+          description: "Số lượng bản ghi trên mỗi trang khi phân trang kết quả. Nếu không cung cấp thì hệ thống sẽ sử dụng giá trị mặc định là 10."
+          schema:
+            type: integer
+          example: ""
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-RATELIMIT-LIMIT:
+              description: "Giới hạn số request trong chu kỳ."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-REMAINING:
+              description: "Số request còn lại trong chu kỳ hiện tại."
+              required: false
+              schema:
+                type: string
+            X-RATELIMIT-RESET:
+              description: "Thời điểm reset giới hạn request."
+              required: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties:
+                  pageSize:
+                    type: integer
+                    description: ""
+                    example: 0
+                  pageIndex:
+                    type: integer
+                    description: ""
+                    example: 0
+                  pagesCount:
+                    type: integer
+                    description: ""
+                    example: 0
+                  itemsCount:
+                    type: integer
+                    description: ""
+                    example: 0
+                  data:
+                    type: array
+                    description: ""
+                    items:
+                      type: object
+                      required: []
+                      properties:
+                        symbol:
+                          type: string
+                          description: ""
+                          example: "string"
+                        exchange:
+                          type: string
+                          description: ""
+                          example: "string"
+                        tradingDate:
+                          type: string
+                          description: ""
+                          example: "string"
+                        ceiling:
+                          type: string
+                          description: ""
+                          example: "string"
+                        floor:
+                          type: string
+                          description: ""
+                          example: "string"
+                        refPrice:
+                          type: string
+                          description: ""
+                          example: "string"
+        "400":
+          description: ""
+          headers: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: []
+                properties: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Nhập JWT token theo định dạng `Bearer <token>`."
